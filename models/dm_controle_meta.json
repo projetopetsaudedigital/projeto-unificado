@@ -1,0 +1,59 @@
+{
+  "treinado_em": "2026-03-07T11:09:27.893922",
+  "total_registros": 17608,
+  "total_controlados": 8799,
+  "prevalencia_treino": 50.0,
+  "features": [
+    "idade",
+    "co_dim_sexo",
+    "hba1c",
+    "st_hipertensao",
+    "st_doenca_cardiaca",
+    "st_insuf_cardiaca",
+    "st_infarto",
+    "st_problema_rins",
+    "st_avc",
+    "st_fumante",
+    "st_alcool",
+    "st_doenca_respiratoria",
+    "st_cancer"
+  ],
+  "n_splits_cv": 5,
+  "metricas": {
+    "roc_auc": {
+      "media": 0.9997381313916082,
+      "std": 0.0004901689247020574
+    },
+    "f1": {
+      "media": 0.9947381879563075,
+      "std": 0.0024654531870387662
+    },
+    "precisao": {
+      "media": 1.0,
+      "std": 0.0
+    },
+    "recall": {
+      "media": 0.9895434376149982,
+      "std": 0.004883986938715501
+    },
+    "acuracia": {
+      "media": 0.9947511929107021,
+      "std": 0.0023574119244431785
+    }
+  },
+  "feature_importances": {
+    "idade": 0.06390014089403331,
+    "co_dim_sexo": 0.0023662633931537326,
+    "hba1c": 0.9249751091963804,
+    "st_hipertensao": 0.005273190728924604,
+    "st_doenca_cardiaca": 0.00047711224329233796,
+    "st_insuf_cardiaca": 0.00017701281401502595,
+    "st_infarto": 0.0002712409902622718,
+    "st_problema_rins": 0.0002248767665208445,
+    "st_avc": 0.0005741173960037601,
+    "st_fumante": 0.0003624357881046727,
+    "st_alcool": 0.00020931778413956726,
+    "st_doenca_respiratoria": 0.0002959399481196292,
+    "st_cancer": 0.0008932420570500746
+  }
+}

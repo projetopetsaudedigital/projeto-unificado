@@ -1,0 +1,61 @@
+{
+  "treinado_em": "2026-03-06T23:21:48.880471",
+  "total_registros": 67502,
+  "total_hipertensos": 18796,
+  "prevalencia_treino": 27.8,
+  "features": [
+    "idade",
+    "co_dim_sexo",
+    "st_diabetes",
+    "st_fumante",
+    "st_alcool",
+    "st_outra_droga",
+    "st_doenca_cardiaca",
+    "st_problema_rins",
+    "st_avc",
+    "st_infarto",
+    "st_doenca_respiratoria",
+    "st_cancer",
+    "st_hanseniase",
+    "st_tuberculose"
+  ],
+  "n_splits_cv": 5,
+  "metricas": {
+    "roc_auc": {
+      "media": 0.8851323439340952,
+      "std": 0.001970253112630114
+    },
+    "f1": {
+      "media": 0.6878114780521951,
+      "std": 0.010080652422649604
+    },
+    "precisao": {
+      "media": 0.5752108401857854,
+      "std": 0.012041466418067125
+    },
+    "recall": {
+      "media": 0.855622066252421,
+      "std": 0.015521412571846804
+    },
+    "acuracia": {
+      "media": 0.7817422222222222,
+      "std": 0.006621977624118134
+    }
+  },
+  "feature_importances": {
+    "idade": 0.7267898147647567,
+    "co_dim_sexo": 0.004139034577336711,
+    "st_diabetes": 0.17731234167896384,
+    "st_fumante": 0.00448377332302697,
+    "st_alcool": 0.0008978635564267647,
+    "st_outra_droga": 0.00045235134335593573,
+    "st_doenca_cardiaca": 0.04034968745497382,
+    "st_problema_rins": 0.0037983434133057785,
+    "st_avc": 0.020370636703894048,
+    "st_infarto": 0.014771353532053425,
+    "st_doenca_respiratoria": 0.0013948022412714261,
+    "st_cancer": 0.005239954822527927,
+    "st_hanseniase": 4.258810673872012e-08,
+    "st_tuberculose": 0.0
+  }
+}
