@@ -7481,7 +7481,7 @@ LINE 12:     FROM dashboard.vw_bairro_canonico
 2026-03-08 20:55:26 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_pa_cadastros (concurrently=True)
 2026-03-08 20:56:11 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_pa_medicoes_cidadaos (concurrently=True)
 2026-03-08 20:56:27 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_dm_hemoglobina (concurrently=True)
-2026-03-08 20:56:57 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_obesidade (concurrently=True)
+2026-03-08 20:56:57 | INFO     | pa.views.manager               |
 2026-03-08 20:58:47 | INFO     | main                           | API encerrada.
 2026-03-08 20:58:49 | INFO     | main                           | ============================================================
 2026-03-08 20:58:49 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
@@ -7569,10 +7569,10 @@ LINE 3:         (no_bairro_raw, no_bairro_canonico, no_loteamento, t...
 2026-03-08 21:21:19 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_dm_hemoglobina (concurrently=True)
 2026-03-08 21:21:33 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_pa_medicoes (concurrently=True)
 2026-03-08 21:21:46 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_pa_cadastros (concurrently=True)
-2026-03-08 21:21:53 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_obesidade (concurrently=True)
+2026-03-08 21:21:53 | INFO     | pa.views.manager               |
 2026-03-08 21:22:09 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_pa_medicoes_cidadaos (concurrently=True)
 2026-03-08 21:22:14 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_dm_hemoglobina (concurrently=True)
-2026-03-08 21:22:32 | INFO     | pa.views.manager               | View atualizada: dashboard.mv_obesidade (concurrently=True)
+2026-03-08 21:22:32 | INFO     | pa.views.manager               |
 2026-03-08 21:27:48 | INFO     | pa.quality.audit_table         | Tabela de auditoria 'dashboard.tb_auditoria_outliers' pronta.
 2026-03-08 21:27:48 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
 2026-03-08 21:27:55 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_medicoes
@@ -7656,3 +7656,101 @@ LINE 3:         (no_bairro_raw, no_bairro_canonico, no_loteamento, t...
 2026-03-09 15:12:23 | INFO     | main                           | Banco Admin: localhost:5432/admin-esus (leitura/escrita)
 2026-03-09 15:12:23 | INFO     | main                           | Documentação: http://localhost:8000/docs
 2026-03-09 15:12:23 | INFO     | main                           | ============================================================
+2026-03-11 11:41:56 | ERROR    | core.database                  | Falha na conexão com o PEC: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 11:42:45 | INFO     | main                           | ============================================================
+2026-03-11 11:42:45 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-11 11:42:45 | INFO     | main                           | Ambiente: development
+2026-03-11 11:42:45 | INFO     | main                           | Banco PEC: localhost:5432/pet_saude (somente leitura)
+2026-03-11 11:42:45 | INFO     | main                           | Banco Admin: localhost:5432/admin-esus (leitura/escrita)
+2026-03-11 11:42:45 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-11 11:42:45 | INFO     | main                           | ============================================================
+2026-03-11 11:49:55 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 11:49:58 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 11:56:54 | ERROR    | core.database                  | Falha na conexão com o PEC: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 11:56:54 | ERROR    | pa.quality.audit_table         | Erro ao criar tabela de auditoria: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 11:56:54 | ERROR    | pa.quality.audit_table         | Erro ao contar outliers: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:02:56 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:03:02 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:05:03 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:05:31 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:12:46 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:19:28 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:19:29 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:19:57 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:20:08 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:29:05 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:29:10 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:32:13 | ERROR    | core.database                  | Erro ao executar query: 'utf-8' codec can't decode byte 0xe7 in position 78: invalid continuation byte
+2026-03-11 12:34:18 | INFO     | pa.quality.audit_table         | Tabela de auditoria 'dashboard.tb_auditoria_outliers' pronta.
+2026-03-11 12:34:18 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-11 12:34:25 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_medicoes
+2026-03-11 12:34:31 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_cadastros
+2026-03-11 12:34:54 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_medicoes_cidadaos
+2026-03-11 12:35:07 | INFO     | scripts.sincronizar_base_geo   | Buscando bairros em: C:\Users\maria\codigos\projeto-unificado\backend\data\geojson\Bairros.geojson
+2026-03-11 12:35:07 | INFO     | scripts.sincronizar_base_geo   | Populando tb_geocodificacao com base em GeoJSON...
+2026-03-11 12:35:07 | INFO     | scripts.sincronizar_base_geo   |  -> 190 regiões (bairros/loteamentos) geocodificadas com sucesso.
+2026-03-11 12:35:07 | INFO     | scripts.sincronizar_base_geo   | Realizando Fuzzy Match do e-SUS contra a Base Geográfica Oficial...
+2026-03-11 12:35:07 | INFO     | scripts.sincronizar_base_geo   | Buscando bairros em: C:\Users\maria\codigos\projeto-unificado\backend\data\geojson\Bairros.geojson
+2026-03-11 12:35:09 | INFO     | scripts.sincronizar_base_geo   | Mapeamento concluído: 101 Exatos, 1161 Fuzzy, 873 Órfãos.
+2026-03-11 12:35:17 | INFO     | main                           | ============================================================
+2026-03-11 12:35:17 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-11 12:35:17 | INFO     | main                           | Ambiente: development
+2026-03-11 12:35:17 | INFO     | main                           | Banco PEC: localhost:5432/Esus (somente leitura)
+2026-03-11 12:35:17 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
+2026-03-11 12:35:17 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-11 12:35:17 | INFO     | main                           | ============================================================
+2026-03-11 14:50:02 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-11 14:50:02 | INFO     | ob.ml.predictor                | Modelo de obesidade carregado.
+2026-03-11 14:54:07 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-11 14:54:07 | INFO     | ob.ml.predictor                | Modelo de obesidade carregado.
+2026-03-12 08:34:50 | INFO     | main                           | ============================================================
+2026-03-12 08:34:50 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-12 08:34:50 | INFO     | main                           | Ambiente: development
+2026-03-12 08:34:50 | INFO     | main                           | Banco PEC: localhost:5432/Esus (somente leitura)
+2026-03-12 08:34:50 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
+2026-03-12 08:34:50 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-12 08:34:50 | INFO     | main                           | ============================================================
+2026-03-12 10:27:22 | INFO     | main                           | API encerrada.
+2026-03-12 10:27:25 | INFO     | main                           | ============================================================
+2026-03-12 10:27:25 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-12 10:27:25 | INFO     | main                           | Ambiente: development
+2026-03-12 10:27:25 | INFO     | main                           | Banco PEC: localhost:5432/Esus (somente leitura)
+2026-03-12 10:27:25 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
+2026-03-12 10:27:25 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-12 10:27:25 | INFO     | main                           | ============================================================
+2026-03-12 10:27:25 | INFO     | main                           | API encerrada.
+2026-03-12 10:27:26 | INFO     | main                           | ============================================================
+2026-03-12 10:27:26 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-12 10:27:26 | INFO     | main                           | Ambiente: development
+2026-03-12 10:27:26 | INFO     | main                           | Banco PEC: localhost:5432/Esus (somente leitura)
+2026-03-12 10:27:26 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
+2026-03-12 10:27:26 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-12 10:27:26 | INFO     | main                           | ============================================================
+2026-03-12 10:32:22 | INFO     | main                           | API encerrada.
+2026-03-12 10:32:24 | INFO     | main                           | ============================================================
+2026-03-12 10:32:24 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-12 10:32:24 | INFO     | main                           | Ambiente: development
+2026-03-12 10:32:24 | INFO     | main                           | Banco PEC: localhost:5432/Esus (somente leitura)
+2026-03-12 10:32:24 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
+2026-03-12 10:32:24 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-12 10:32:24 | INFO     | main                           | ============================================================
+2026-03-12 10:32:24 | INFO     | main                           | API encerrada.
+2026-03-12 10:32:26 | INFO     | main                           | ============================================================
+2026-03-12 10:32:26 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-12 10:32:26 | INFO     | main                           | Ambiente: development
+2026-03-12 10:32:26 | INFO     | main                           | Banco PEC: localhost:5432/Esus (somente leitura)
+2026-03-12 10:32:26 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
+2026-03-12 10:32:26 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-12 10:32:26 | INFO     | main                           | ============================================================
+2026-03-12 10:38:27 | INFO     | main                           | ============================================================
+2026-03-12 10:38:27 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-12 10:38:27 | INFO     | main                           | Ambiente: development
+2026-03-12 10:38:27 | INFO     | main                           | Banco PEC: localhost:5432/Esus (somente leitura)
+2026-03-12 10:38:27 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
+2026-03-12 10:38:27 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-12 10:38:27 | INFO     | main                           | ============================================================
+2026-03-12 10:42:54 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-12 10:43:02 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-12 10:44:03 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-12 10:47:50 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-12 10:59:53 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.

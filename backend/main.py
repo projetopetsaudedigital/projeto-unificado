@@ -29,8 +29,6 @@ from app.modules.pressao_arterial.routes.admin import router as admin_router
 from app.modules.pressao_arterial.routes.ml import router as ml_router
 from app.modules.diabetes.routes.analytics import router as dm_analytics_router
 from app.modules.diabetes.routes.ml import router as dm_ml_router
-from app.modules.obesidade.routes.analytics import router as ob_analytics_router
-from app.modules.obesidade.routes.ml import router as ob_ml_router
 from app.auth.routes import router as auth_router
 
 logger = setup_logging("main")
@@ -209,23 +207,6 @@ TAGS_METADATA = [
             "de controle glicemico, metricas e inferencia individual a partir de perfil do paciente diabetico."
         ),
     },
-    {
-        "name": "obesidade-analytics",
-        "description": (
-            "Analises epidemiologicas de **obesidade e IMC**: KPIs (IMC medio, prevalencia por grau), "
-            "evolucao temporal mensal, distribuicao das 6 classes OMS (Baixo Peso a Obesidade III), "
-            "comorbidades por faixa de IMC e IMC medio por bairro. "
-            "Fonte: view materializada `mv_obesidade` no schema `dashboard`."
-        ),
-    },
-    {
-        "name": "obesidade-ml",
-        "description": (
-            "Pipeline de **Machine Learning para classificacao de IMC**: treinamento de RandomForest "
-            "multiclasse (6 classes OMS) com validacao TimeSeriesSplit, metricas por classe, "
-            "importancia de features e predicao individual com probabilidades e nivel de confianca."
-        ),
-    },
 ]
 
 app = FastAPI(
@@ -255,8 +236,6 @@ app.include_router(admin_router,    prefix="/api/v1/pressao-arterial/admin", tag
 app.include_router(ml_router,          prefix="/api/v1/pressao-arterial",       tags=["ml"])
 app.include_router(dm_analytics_router, prefix="/api/v1/diabetes",              tags=["diabetes-analytics"])
 app.include_router(dm_ml_router,        prefix="/api/v1/diabetes",              tags=["diabetes-ml"])
-app.include_router(ob_analytics_router, prefix="/api/v1/obesidade",             tags=["obesidade-analytics"])
-app.include_router(ob_ml_router,        prefix="/api/v1/obesidade",             tags=["obesidade-ml"])
 app.include_router(auth_router,         prefix="/api/v1",                       tags=["auth"])
 
 

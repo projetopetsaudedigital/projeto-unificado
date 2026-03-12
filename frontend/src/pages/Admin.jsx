@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, Brain, History, ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '../api/pressaoArterial.js'
 import { dmApi } from '../api/diabetes.js'
-import { obApi } from '../api/obesidade.js'
 import {
   Card, CardBody,
   PageHeader,
@@ -20,7 +19,6 @@ const VIEWS = ['mv_pa_medicoes', 'mv_pa_cadastros', 'mv_pa_medicoes_cidadaos']
 const MODELOS = [
   { id: 'has', nome: 'Hipertensão Arterial', apiInfo: () => api.modeloInfo(),   apiStatus: () => api.modeloStatusTreino() },
   { id: 'dm',  nome: 'Diabetes Mellitus',    apiInfo: () => dmApi.modeloInfo(), apiStatus: () => dmApi.modeloStatusTreino() },
-  { id: 'ob',  nome: 'Obesidade',            apiInfo: () => obApi.modeloInfo(), apiStatus: () => obApi.modeloStatus() },
 ]
 
 const TP_LABELS = {
@@ -45,7 +43,6 @@ export default function Admin() {
   // ── modelos ML info ──
   const { data: infoHas } = useQuery({ queryKey: ['modelo-has-info'], queryFn: api.modeloInfo,   staleTime: 60_000 })
   const { data: infoDm }  = useQuery({ queryKey: ['modelo-dm-info'],  queryFn: dmApi.modeloInfo, staleTime: 60_000 })
-  const { data: infoOb }  = useQuery({ queryKey: ['modelo-ob-info'],  queryFn: obApi.modeloInfo, staleTime: 60_000 })
 
   // ── historico de processamentos ──
   const { data: processamentos, refetch: refetchProc } = useQuery({
@@ -90,7 +87,6 @@ export default function Admin() {
         setTreinando(r => ({ ...r, [modulo]: false }))
         qc.invalidateQueries({ queryKey: ['modelo-has-info'] })
         qc.invalidateQueries({ queryKey: ['modelo-dm-info'] })
-        qc.invalidateQueries({ queryKey: ['modelo-ob-info'] })
         refetchProc()
       }, 5000)
     }
@@ -231,7 +227,7 @@ export default function Admin() {
         />
         <CardBody className="space-y-4">
           {MODELOS.map(m => {
-            const infoMap = { has: infoHas, dm: infoDm, ob: infoOb }
+            const infoMap = { has: infoHas, dm: infoDm}
             const info = infoMap[m.id]
             const msg = treinoMsg[m.id]
             return (

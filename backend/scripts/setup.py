@@ -44,7 +44,6 @@ _SQL_SETUP_GEO         = (_SQL_DIR / "geo" / "setup_geocodificacao.sql").read_te
 _SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sql").read_text(encoding="utf-8")
 _SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_HEMOGLOBINA = (_SQL_DIR / "diabetes" / "mv_dm_hemoglobina.sql").read_text(encoding="utf-8")
-_SQL_MV_OBESIDADE      = (_SQL_DIR / "obesidade" / "mv_obesidade.sql").read_text(encoding="utf-8")
 
 _SQL_BAIRROS_MAPEAMENTO = """
 CREATE TABLE IF NOT EXISTS dashboard.tb_bairros_mapeamento (
@@ -217,18 +216,6 @@ def step_views_diabetes() -> None:
         print(f"  [ERRO] mv_dm_hemoglobina: {e}")
 
 
-def step_views_obesidade() -> None:
-    """Cria mv_obesidade."""
-    print("\n[VIEWS-OBESIDADE] Criando view materializada de Obesidade...")
-    if settings.DB_MODE == "fdw":
-        print("  (pode levar 20-60 minutos via FDW — aguarde sem interromper)")
-    try:
-        _executar_sql_ddl(_SQL_MV_OBESIDADE)
-        print("  [OK] dashboard.mv_obesidade")
-    except Exception as e:
-        print(f"  [ERRO] mv_obesidade: {e}")
-
-
 def step_views_regulares() -> None:
     """Cria vw_bairro_canonico e vw_loteamento_canonico."""
     print("\n[VIEWS-REGULARES] Criando views regulares de endereço...")
@@ -293,7 +280,6 @@ def step_refresh() -> None:
         "mv_pa_cadastros",
         "mv_pa_medicoes_cidadaos",
         "mv_dm_hemoglobina",
-        "mv_obesidade",
     ]
 
     print("\n[REFRESH] Atualizando views materializadas...")
@@ -336,7 +322,7 @@ Exemplos:
     parser.add_argument(
         "--all",
         action="store_true",
-        help="Executa tudo na ordem correta: schema → auth → tabelas → views (PA, diabetes, obesidade, regulares)",
+        help="Executa tudo na ordem correta: schema → auth → tabelas → views (PA, diabetes, regulares)",
     )
     parser.add_argument(
         "--check",
@@ -369,12 +355,6 @@ Exemplos:
         action="store_true",
         dest="views_diabetes",
         help="Cria mv_dm_hemoglobina (Diabetes)",
-    )
-    parser.add_argument(
-        "--views-obesidade",
-        action="store_true",
-        dest="views_obesidade",
-        help="Cria mv_obesidade (Obesidade)",
     )
     parser.add_argument(
         "--views-regulares",
@@ -427,8 +407,8 @@ def main() -> None:
     # Sem nenhuma flag → exibir help
     nenhuma_flag = not any([
         args.all, args.check, args.schema, args.auth, args.tabelas,
-        args.views_pa, args.views_diabetes, args.views_obesidade,
-        args.views_regulares, args.normalizacao, args.refresh,
+        args.views_pa, args.views_diabetes, args.views_regulares, 
+        args.normalizacao, args.refresh,
     ])
     if nenhuma_flag:
         parser.print_help()
@@ -454,7 +434,6 @@ def main() -> None:
         step_tabelas()
         step_views_pa()
         step_views_diabetes()
-        step_views_obesidade()
         step_views_regulares()
         step_sincronizacao_geo()
     else:
@@ -468,8 +447,6 @@ def main() -> None:
             step_views_pa()
         if args.views_diabetes:
             step_views_diabetes()
-        if args.views_obesidade:
-            step_views_obesidade()
         if args.views_regulares:
             step_views_regulares()
         if args.normalizacao:

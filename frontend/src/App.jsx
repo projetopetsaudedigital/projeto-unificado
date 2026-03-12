@@ -21,10 +21,6 @@ import DmPainel         from './pages/diabetes/DmPainel.jsx'
 import DmControle       from './pages/diabetes/DmControle.jsx'
 import DmTendencias     from './pages/diabetes/DmTendencias.jsx'
 import DmRisco          from './pages/diabetes/DmRisco.jsx'
-import ObPainel         from './pages/obesidade/ObPainel.jsx'
-import ObDistribuicao   from './pages/obesidade/ObDistribuicao.jsx'
-import ObFatoresRisco   from './pages/obesidade/ObFatoresRisco.jsx'
-import ObRisco          from './pages/obesidade/ObRisco.jsx'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,19 +56,6 @@ const MODULES = [
       { to: '/diabetes/controle',   label: 'Controle Glicêmico', Icon: FlaskConical },
       { to: '/diabetes/tendencias', label: 'Tendências HbA1c',   Icon: TrendingUp   },
       { to: '/diabetes/risco',      label: 'Risco Glicêmico',    Icon: Brain        },
-    ],
-  },
-  {
-    key: 'obesidade',
-    label: 'Obesidade',
-    Icon: Scale,
-    color: 'text-orange-600',
-    bgActive: 'bg-orange-50',
-    pages: [
-      { to: '/obesidade',               label: 'Painel',           Icon: BarChart2   },
-      { to: '/obesidade/distribuicao',  label: 'Distribuição IMC', Icon: BarChart2   },
-      { to: '/obesidade/fatores-risco', label: 'Fatores de Risco', Icon: Shield      },
-      { to: '/obesidade/risco',         label: 'Risco Individual', Icon: Stethoscope },
     ],
   },
 ]
@@ -230,11 +213,6 @@ function Layout() {
             <Route path="/diabetes/controle"     element={<DmControle />}   />
             <Route path="/diabetes/tendencias"   element={<DmTendencias />} />
             <Route path="/diabetes/risco"        element={<DmRisco />}      />
-            {/* Obesidade */}
-            <Route path="/obesidade"               element={<ObPainel />}       />
-            <Route path="/obesidade/distribuicao"  element={<ObDistribuicao />} />
-            <Route path="/obesidade/fatores-risco" element={<ObFatoresRisco />} />
-            <Route path="/obesidade/risco"         element={<ObRisco />}        />
             {/* Admin */}
             <Route path="/admin" element={<Admin />} />
           </Routes>

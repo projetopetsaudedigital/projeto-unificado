@@ -213,7 +213,7 @@ def treinar_modelo_admin(modulo: str, background_tasks: BackgroundTasks):
             elif modulo == "dm":
                 from app.modules.diabetes.ml.pipeline import treinar_modelo
             else:
-                from app.modules.obesidade.ml.pipeline import treinar_modelo
+                print("Módulo Desconhecido")
             treinar_modelo()
             logger.info(f"Treinamento '{modulo}' concluído.")
         except Exception as e:
@@ -223,7 +223,7 @@ def treinar_modelo_admin(modulo: str, background_tasks: BackgroundTasks):
 
     background_tasks.add_task(_treinar_bg)
 
-    nomes = {"has": "Hipertensão Arterial", "dm": "Diabetes Mellitus", "ob": "Obesidade"}
+    nomes = {"has": "Hipertensão Arterial", "dm": "Diabetes Mellitus"}
     return {
         "status": "iniciado",
         "modulo": modulo,
@@ -440,7 +440,6 @@ def setup_info():
     | `--tabelas` | Cria tabelas de suporte (auditoria, controle, bairros_mapeamento) |
     | `--views-pa` | Cria as 3 views materializadas de Pressão Arterial |
     | `--views-diabetes` | Cria `mv_dm_hemoglobina` |
-    | `--views-obesidade` | Cria `mv_obesidade` |
     | `--views-regulares` | Cria `vw_bairro_canonico` e `vw_loteamento_canonico` |
     | `--normalizacao` | Normalização de bairros via ViaCEP + fuzzy (executar após --all) |
     | `--refresh` | REFRESH CONCURRENTLY em todas as views materializadas |
@@ -466,7 +465,6 @@ def setup_info():
             "--tabelas": "Cria tabelas de suporte (auditoria, controle, bairros)",
             "--views-pa": "Cria as 3 views materializadas de Pressão Arterial",
             "--views-diabetes": "Cria mv_dm_hemoglobina",
-            "--views-obesidade": "Cria mv_obesidade",
             "--views-regulares": "Cria vw_bairro_canonico e vw_loteamento_canonico",
             "--normalizacao": "Normalização de bairros via ViaCEP + fuzzy (executar após --all)",
             "--refresh": "REFRESH CONCURRENTLY em todas as views materializadas",

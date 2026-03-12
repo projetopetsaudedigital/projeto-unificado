@@ -1,10 +1,10 @@
 
 ============================================================
-  SETUP — Plataforma de Saúde Pública
+  SETUP ï¿½ Plataforma de Saï¿½de Pï¿½blica
 ============================================================
 
-[1/6] Testando conexão com o banco...
-  OK — PEC: pet_saude | Admin: admin-esus
+[1/6] Testando conexï¿½o com o banco...
+  OK ï¿½ PEC: pet_saude | Admin: admin-esus
 
 [2/6] Criando schema 'dashboard'...
 2026-03-07 13:56:46 | INFO     | pa.views.manager               | Schema 'dashboard' verificado.
@@ -17,7 +17,7 @@
   Controle de processamento: OK
   Mapeamento de bairros: OK
 
-[4/7] Criando views materializadas de Pressão Arterial...
+[4/7] Criando views materializadas de Pressï¿½o Arterial...
 2026-03-07 13:56:46 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_medicoes
 2026-03-07 13:56:46 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_cadastros
 2026-03-07 13:56:46 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_medicoes_cidadaos
@@ -26,7 +26,7 @@
   [OK] dashboard.mv_pa_medicoes_cidadaos
 
 [5/7] Criando view materializada de Diabetes...
-  (pode levar varios minutos via FDW — aguarde)
+  (pode levar varios minutos via FDW ï¿½ aguarde)
     [1/10] 13:56:46 CREATE MATERIALIZED VIEW IF NOT EXISTS dashboard.mv_dm_hemoglobina AS...
     [1/10] 13:56:46 OK
     [2/10] 13:56:46 CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_dm_hba1c_pk...
@@ -48,61 +48,3 @@
     [10/10] 13:56:46 COMMENT ON MATERIALIZED VIEW dashboard.mv_dm_hemoglobina IS...
     [10/10] 13:56:46 OK
   [OK] dashboard.mv_dm_hemoglobina
-
-[6/8] Criando view materializada de Obesidade...
-  (pode levar 20-60 minutos via FDW — aguarde sem interromper)
-    [1/11] 13:56:46 CREATE MATERIALIZED VIEW IF NOT EXISTS dashboard.mv_obesidade AS...
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 30s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 60s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 90s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 120s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 150s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 180s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 210s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 240s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 270s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 300s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 330s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 360s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 390s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 420s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 450s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 480s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 510s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 540s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 570s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 600s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 630s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 660s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 690s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 720s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 750s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 780s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 810s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 840s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 870s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 900s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 930s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 960s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 990s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1020s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1050s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1080s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1110s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1140s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1170s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1200s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1230s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1260s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1290s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1320s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1350s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1380s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1410s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1440s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1470s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1500s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1530s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1560s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1590s decorridos
-    ... aguardando 'CREATE MATERIALIZED VIEW IF NOT EXISTS d' — 1620s decorridos
