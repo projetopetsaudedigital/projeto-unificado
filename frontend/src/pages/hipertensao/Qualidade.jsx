@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle, AlertCircle, Clock, Database } from 'lucide-react'
-import { api } from '../api/pressaoArterial.js'
+import { api } from '../../api/pressaoArterial.js'
 
 function StatusBadge({ existe }) {
   return existe ? (

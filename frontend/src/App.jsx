@@ -9,14 +9,14 @@ import {
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
 import Login from './pages/Login.jsx'
 
-import Painel           from './pages/Painel.jsx'
-import Prevalencia      from './pages/Prevalencia.jsx'
-import FatoresRisco     from './pages/FatoresRisco.jsx'
-import MapaPage         from './pages/Mapa.jsx'
-import Qualidade        from './pages/Qualidade.jsx'
-import UBS              from './pages/UBS.jsx'
+import Painel           from './pages/hipertensao/Painel.jsx'
+import Prevalencia      from './pages/hipertensao/Prevalencia.jsx'
+import FatoresRisco     from './pages/hipertensao/FatoresRisco.jsx'
+import MapaPage         from './pages/hipertensao/Mapa.jsx'
+import Qualidade        from './pages/hipertensao/Qualidade.jsx'
+import UBS              from './pages/hipertensao/UBS.jsx'
 import Admin            from './pages/Admin.jsx'
-import RiscoIndividual  from './pages/RiscoIndividual.jsx'
+import RiscoIndividual  from './pages/hipertensao/RiscoIndividual.jsx'
 import DmPainel         from './pages/diabetes/DmPainel.jsx'
 import DmControle       from './pages/diabetes/DmControle.jsx'
 import DmTendencias     from './pages/diabetes/DmTendencias.jsx'
@@ -36,13 +36,13 @@ const MODULES = [
     color: 'text-blue-600',
     bgActive: 'bg-blue-50',
     pages: [
-      { to: '/',              label: 'Painel',           Icon: BarChart2    },
-      { to: '/prevalencia',   label: 'Prevalência',      Icon: Map          },
-      { to: '/fatores-risco', label: 'Fatores de Risco', Icon: Shield       },
-      { to: '/mapa',          label: 'Mapa',             Icon: Map          },
-      { to: '/ubs',           label: 'UBS',              Icon: Building2    },
-      { to: '/risco',         label: 'Risco Individual', Icon: Stethoscope  },
-      { to: '/qualidade',     label: 'Qualidade',        Icon: ClipboardList},
+      { to: '/hipertensao',               label: 'Painel',           Icon: BarChart2    },
+      { to: '/hipertensao/prevalencia',   label: 'Prevalência',      Icon: Map          },
+      { to: '/hipertensao/fatores-risco', label: 'Fatores de Risco', Icon: Shield       },
+      { to: '/hipertensao/mapa',          label: 'Mapa',             Icon: Map          },
+      { to: '/hipertensao/ubs',           label: 'UBS',              Icon: Building2    },
+      { to: '/hipertensao/risco',         label: 'Risco Individual', Icon: Stethoscope  },
+      { to: '/hipertensao/qualidade',     label: 'Qualidade',        Icon: ClipboardList},
     ],
   },
   {

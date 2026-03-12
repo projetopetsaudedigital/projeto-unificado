@@ -5,7 +5,7 @@ import {
   BarChart, Bar, ResponsiveContainer,
 } from 'recharts'
 import { Users, HeartPulse, Percent, MapPin } from 'lucide-react'
-import { api } from '../api/pressaoArterial.js'
+import { api } from '../../api/pressaoArterial.js'
 
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
 

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { api } from '../api/pressaoArterial.js'
+import { api } from '../../api/pressaoArterial'
 import { AlertTriangle, Brain, RefreshCw, CheckCircle, XCircle } from 'lucide-react'
 
 // ── Gauge SVG ────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, Cell,
 } from 'recharts'
-import { api } from '../api/pressaoArterial.js'
+import { api } from '../../api/pressaoArterial.js'
 
 const AGRUPAMENTOS = [
   { value: 'bairro',       label: 'Por Bairro (VDC)'  },

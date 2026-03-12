@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
-import { api } from '../api/pressaoArterial.js'
+import { api } from '../../api/pressaoArterial.js'
 
 const BADGE_COLORS = {
   baixa:  'bg-green-100 text-green-800',

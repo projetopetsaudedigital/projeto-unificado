@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet'
 import { Link } from 'react-router-dom'
 import 'leaflet/dist/leaflet.css'
-import { api } from '../api/pressaoArterial.js'
+import { api } from '../../api/pressaoArterial.js'
 
 const VDC_CENTER = [-14.866, -40.844]
 const VDC_ZOOM = 13
