@@ -266,3 +266,36 @@ class UbsResponse(BaseModel):
     total: int = Field(description="Número de UBS retornadas.")
     filtros_aplicados: dict
     dados: list[UbsItem]
+
+
+# ─── Individuos com hipertensao ────────────────────────────────────────────
+
+class IndividuoHipertensaoItem(BaseModel):
+    co_cidadao: int = Field(
+        description="Identificador unico do cidadao no e-SUS PEC.",
+        examples=[1234567],
+    )
+    mediana_pas: float = Field(
+        description="Mediana da PAS considerando ate os 3 dias mais recentes no ultimo ano.",
+        examples=[146.0],
+    )
+    mediana_pad: float = Field(
+        description="Mediana da PAD considerando ate os 3 dias mais recentes no ultimo ano.",
+        examples=[92.0],
+    )
+    n_medicoes_usadas: int = Field(
+        description="Quantidade de dias usados no calculo da mediana (1 a 3).",
+        examples=[3],
+    )
+    dt_ultima_medicao: date = Field(
+        description="Data da medicao mais recente considerada no calculo.",
+        examples=["2026-03-10"],
+    )
+
+
+class IndividuosHipertensaoResponse(BaseModel):
+    total: int = Field(description="Total de individuos hipertensos para os filtros aplicados.")
+    limite: int = Field(description="Tamanho da pagina retornada.")
+    offset: int = Field(description="Deslocamento da pagina atual.")
+    filtros_aplicados: dict = Field(description="Resumo dos filtros usados na consulta.")
+    dados: list[IndividuoHipertensaoItem]
