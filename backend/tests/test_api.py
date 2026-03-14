@@ -38,17 +38,46 @@ def client_autenticado_mock(monkeypatch):
             "dados": [
                 {
                     "co_cidadao": 101,
-                    "mediana_pas": 146.0,
-                    "mediana_pad": 92.0,
+                    "mediana_anual": {"pas": 150.0, "pad": 90.0},
                     "n_medicoes_usadas": 3,
                     "dt_ultima_medicao": "2026-03-10",
+                    "paciente_perfil": {
+                        "nome": "Ana Carolina Souza",
+                        "idade": 45,
+                        "sexo": "F",
+                    },
+                    "territorio": {
+                        "area": "2",
+                        "microarea": "03",
+                    },
+                    "ultimas_medicoes": [
+                        {"data_medicao": "2026-03-10", "pas": 160.0, "pad": 100.0, "pressao": "160/100"},
+                        {"data_medicao": "2026-03-06", "pas": 155.0, "pad": 95.0, "pressao": "155/95"},
+                        {"data_medicao": "2026-03-01", "pas": 158.0, "pad": 105.0, "pressao": "158/105"},
+                    ],
+                    "outras_condicoes": ["Diabetes", "Problema Renal"],
+                    "status_atual": "Descontrolado",
                 },
                 {
                     "co_cidadao": 202,
-                    "mediana_pas": 142.0,
-                    "mediana_pad": 90.0,
+                    "mediana_anual": {"pas": 142.0, "pad": 90.0},
                     "n_medicoes_usadas": 2,
                     "dt_ultima_medicao": "2026-03-08",
+                    "paciente_perfil": {
+                        "nome": "Antonio Ferreira",
+                        "idade": 68,
+                        "sexo": "M",
+                    },
+                    "territorio": {
+                        "area": "1",
+                        "microarea": "01",
+                    },
+                    "ultimas_medicoes": [
+                        {"data_medicao": "2026-03-08", "pas": 142.0, "pad": 90.0, "pressao": "142/90"},
+                        {"data_medicao": "2026-03-02", "pas": 141.0, "pad": 92.0, "pressao": "141/92"},
+                    ],
+                    "outras_condicoes": ["Tabagismo"],
+                    "status_atual": "Descontrolado",
                 },
             ],
         },
@@ -156,7 +185,21 @@ class TestIndividuosHipertensao:
         assert "filtros_aplicados" in data
         assert isinstance(data["dados"], list)
         assert data["dados"][0]["co_cidadao"] == 101
-        assert data["dados"][0]["mediana_pas"] == 146.0
-        assert data["dados"][0]["mediana_pad"] == 92.0
+        assert "nu_area" not in data["dados"][0]
+        assert "nu_micro_area" not in data["dados"][0]
+        assert "mediana_pas" not in data["dados"][0]
+        assert "mediana_pad" not in data["dados"][0]
+        assert data["dados"][0]["mediana_anual"]["pas"] == 150.0
+        assert data["dados"][0]["mediana_anual"]["pad"] == 90.0
         assert data["dados"][0]["n_medicoes_usadas"] == 3
         assert data["dados"][0]["dt_ultima_medicao"] == "2026-03-10"
+        assert "co_cidadao" not in data["dados"][0]["paciente_perfil"]
+        assert data["dados"][0]["paciente_perfil"]["nome"] == "Ana Carolina Souza"
+        assert data["dados"][0]["paciente_perfil"]["idade"] == 45
+        assert data["dados"][0]["paciente_perfil"]["sexo"] == "F"
+        assert data["dados"][0]["territorio"]["area"] == "2"
+        assert data["dados"][0]["territorio"]["microarea"] == "03"
+        assert len(data["dados"][0]["ultimas_medicoes"]) == 3
+        assert data["dados"][0]["ultimas_medicoes"][0]["pressao"] == "160/100"
+        assert data["dados"][0]["outras_condicoes"] == ["Diabetes", "Problema Renal"]
+        assert data["dados"][0]["status_atual"] == "Descontrolado"
