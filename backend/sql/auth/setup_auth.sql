@@ -36,6 +36,16 @@ VALUES (
     'admin@admin.com',
     '$2b$12$O0zc9Gaucxpjvb8BBddM1eT/nxbQFPZPHY75XHPC9gDwPXOs.RpR2',
     'admin'
+), (
+    'Gestor',
+    'gestor@gestor.com',
+    '$2a$12$gAJq/nZkSzC1exOuOOgzjuIkw8VwpWl74Obp/xR7WDq7iscHSExn.',
+    'leitor'
+), (
+    'Equipe',
+    'equipe@equipe.com',
+    '$2a$12$1VE1oFEn0d8DBnZ9JX/XIeWTOOTV3pkvvNmMqBNWLT353FNR6Z0b.',
+    'leitor'
 ) ON CONFLICT (ds_email) DO NOTHING;
 
 COMMENT ON TABLE auth.tb_usuarios IS
