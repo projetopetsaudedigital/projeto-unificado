@@ -10,7 +10,8 @@ Endpoints:
   GET /bairros             → lista de bairros VDC disponíveis
 """
 
-from fastapi import APIRouter, Query
+from datetime import date
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 
 from app.modules.pressao_arterial.analytics.tendencia import buscar_tendencia
@@ -32,6 +33,8 @@ from app.modules.pressao_arterial.analytics.mapa import (
     buscar_dados_mapa_loteamentos,
 )
 from app.modules.pressao_arterial.analytics.ubs import buscar_dados_ubs
+from app.modules.pressao_arterial.analytics.individuos import buscar_individuos_hipertensos
+from app.auth.jwt import get_usuario_obrigatorio
 from app.modules.pressao_arterial.schemas import (
     KPIsResponse,
     TendenciaResponse,
@@ -40,9 +43,73 @@ from app.modules.pressao_arterial.schemas import (
     MapaResponse,
     BairrosResponse,
     UbsResponse,
+    IndividuosHipertensaoResponse,
 )
 
 router = APIRouter()
+
+
+@router.get(
+    "/individuos",
+    summary="Lista operacional de individuos com hipertensao",
+    response_model=IndividuosHipertensaoResponse,
+)
+def listar_individuos_hipertensos(
+    bairro: Optional[str] = Query(default=None, description="Filtro por bairro normalizado (no_bairro_filtro)"),
+    sexo: Optional[str] = Query(default=None, pattern="^[MF]$", description="Filtro por sexo: M ou F"),
+    faixa_etaria: Optional[str] = Query(
+        default=None,
+        pattern="^(18-29|30-39|40-49|50-59|60-64|65\\+)$",
+        description="Filtro por faixa etaria",
+    ),
+    co_unidade_saude: Optional[int] = Query(default=None, ge=1, description="Codigo da UBS"),
+    st_diabetes: Optional[bool] = Query(default=None, description="Filtro por comorbidade diabetes"),
+    data_ultima_medicao_inicio: Optional[date] = Query(default=None, description="Data inicial da ultima medicao"),
+    data_ultima_medicao_fim: Optional[date] = Query(default=None, description="Data final da ultima medicao"),
+    limite: int = Query(default=50, ge=1, le=500, description="Tamanho da pagina"),
+    offset: int = Query(default=0, ge=0, description="Deslocamento para paginacao"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
+):
+    """Lista individuos hipertensos usando filtros clinico-demograficos."""
+    _ = usuario
+
+    if (
+        data_ultima_medicao_inicio is not None
+        and data_ultima_medicao_fim is not None
+        and data_ultima_medicao_inicio > data_ultima_medicao_fim
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="data_ultima_medicao_inicio nao pode ser maior que data_ultima_medicao_fim",
+        )
+
+    resultado = buscar_individuos_hipertensos(
+        bairro=bairro,
+        sexo=sexo,
+        faixa_etaria=faixa_etaria,
+        co_unidade_saude=co_unidade_saude,
+        st_diabetes=st_diabetes,
+        data_ultima_medicao_inicio=data_ultima_medicao_inicio,
+        data_ultima_medicao_fim=data_ultima_medicao_fim,
+        limite=limite,
+        offset=offset,
+    )
+
+    return {
+        "total": resultado["total"],
+        "limite": limite,
+        "offset": offset,
+        "filtros_aplicados": {
+            "bairro": bairro,
+            "sexo": sexo,
+            "faixa_etaria": faixa_etaria,
+            "co_unidade_saude": co_unidade_saude,
+            "st_diabetes": st_diabetes,
+            "data_ultima_medicao_inicio": data_ultima_medicao_inicio,
+            "data_ultima_medicao_fim": data_ultima_medicao_fim,
+        },
+        "dados": resultado["dados"],
+    }
 
 
 @router.get("/kpis", summary="KPIs gerais para o painel do gestor", response_model=KPIsResponse)
