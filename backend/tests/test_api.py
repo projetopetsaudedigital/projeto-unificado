@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.auth.jwt import get_usuario_obrigatorio
 from app.modules.pressao_arterial.routes import analytics as analytics_routes
+from app.modules.diabetes.routes import analytics as dm_analytics_routes
 
 
 @pytest.fixture
@@ -79,6 +80,41 @@ def client_autenticado_mock(monkeypatch):
                     "outras_condicoes": ["Tabagismo"],
                     "status_atual": "Descontrolado",
                 },
+            ],
+        },
+    )
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client_autenticado_dm_mock(monkeypatch):
+    """Cliente autenticado com mock da busca de individuos diabetes."""
+    from main import app
+
+    app.dependency_overrides[get_usuario_obrigatorio] = lambda: {
+        "co_seq_usuario": 1,
+        "tp_perfil": "leitor",
+    }
+
+    monkeypatch.setattr(
+        dm_analytics_routes,
+        "buscar_individuos_diabetes_descontrolados",
+        lambda **kwargs: {
+            "total": 1,
+            "dados": [
+                {
+                    "co_cidadao": 303,
+                    "paciente_perfil": {"nome": "Maria Silva", "idade": 62, "sexo": "F"},
+                    "territorio": {"area": "2", "microarea": "05"},
+                    "hba1c_atual": {"valor": 8.4, "data": "2026-03-05"},
+                    "ultimas_medicoes": [{"data_medicao": "2026-03-05", "hba1c": 8.4, "exame": "HbA1c"}],
+                    "outras_condicoes": ["Hipertensao", "Tabagismo"],
+                    "status_atual": "Descontrolado",
+                }
             ],
         },
     )
@@ -202,4 +238,42 @@ class TestIndividuosHipertensao:
         assert len(data["dados"][0]["ultimas_medicoes"]) == 3
         assert data["dados"][0]["ultimas_medicoes"][0]["pressao"] == "160/100"
         assert data["dados"][0]["outras_condicoes"] == ["Diabetes", "Problema Renal"]
+        assert data["dados"][0]["status_atual"] == "Descontrolado"
+
+
+class TestIndividuosDiabetes:
+    """Testes do endpoint de individuos com diabetes descontrolado."""
+
+    def test_individuos_dm_sem_token_retorna_401(self, client):
+        r = client.get("/api/v1/diabetes/individuos")
+        assert r.status_code == 401
+
+    def test_individuos_dm_periodo_invalido_retorna_422(self, client_autenticado_dm_mock):
+        r = client_autenticado_dm_mock.get(
+            "/api/v1/diabetes/individuos",
+            params={
+                "data_ultimo_exame_inicio": "2026-03-10",
+                "data_ultimo_exame_fim": "2026-03-01",
+            },
+        )
+        assert r.status_code == 422
+
+    def test_individuos_dm_retorna_estrutura_esperada(self, client_autenticado_dm_mock):
+        r = client_autenticado_dm_mock.get(
+            "/api/v1/diabetes/individuos",
+            params={"limite": 10, "offset": 0},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] == 1
+        assert data["limite"] == 10
+        assert data["offset"] == 0
+        assert "filtros_aplicados" in data
+        assert isinstance(data["dados"], list)
+        assert data["dados"][0]["co_cidadao"] == 303
+        assert data["dados"][0]["paciente_perfil"]["nome"] == "Maria Silva"
+        assert data["dados"][0]["territorio"]["area"] == "2"
+        assert data["dados"][0]["hba1c_atual"]["valor"] == 8.4
+        assert data["dados"][0]["hba1c_atual"]["data"] == "2026-03-05"
+        assert data["dados"][0]["ultimas_medicoes"][0]["exame"] == "HbA1c"
         assert data["dados"][0]["status_atual"] == "Descontrolado"
