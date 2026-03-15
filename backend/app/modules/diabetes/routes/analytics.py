@@ -21,6 +21,7 @@ from app.modules.diabetes.analytics.controle import (
     buscar_controle_por_bairro,
     buscar_comorbidades_vs_controle,
 )
+from app.modules.diabetes.analytics.exames import buscar_exames_hemoglobina_glicada
 from app.modules.diabetes.schemas import IndividuosDiabetesResponse
 
 router = APIRouter()
@@ -81,6 +82,32 @@ def individuos_diabetes(
         },
         "dados": resultado["dados"],
     }
+
+
+@router.get(
+    "/exames",
+    summary="Registros brutos de exames de hemoglobina glicada",
+)
+def exames_hemoglobina_glicada(
+    co_cidadao: Optional[int] = Query(None, description="Filtrar por ID do cidadão"),
+    co_prontuario: Optional[int] = Query(None, description="Filtrar por ID do prontuário"),
+    data_inicio: Optional[str] = Query(None, description="Data inicial (YYYY-MM-DD)"),
+    data_fim: Optional[str] = Query(None, description="Data final (YYYY-MM-DD)"),
+    limit: int = Query(100, ge=1, le=500, description="Máximo de registros"),
+):
+    """
+    Lista exames de HbA1c diretamente da tabela tb_exame_hemoglobina_glicada.
+    """
+    di = date.fromisoformat(data_inicio) if data_inicio else None
+    df = date.fromisoformat(data_fim) if data_fim else None
+    exames = buscar_exames_hemoglobina_glicada(
+        co_cidadao=co_cidadao,
+        co_prontuario=co_prontuario,
+        data_inicio=di,
+        data_fim=df,
+        limit=limit,
+    )
+    return {"exames": exames, "total": len(exames)}
 
 
 @router.get("/kpis", summary="KPIs gerais do módulo Diabetes")

@@ -125,6 +125,38 @@ def client_autenticado_dm_mock(monkeypatch):
     app.dependency_overrides.clear()
 
 
+@pytest.fixture
+def client_exames_dm_mock(monkeypatch):
+    """Cliente com mock da busca de exames de hemoglobina glicada (diabetes)."""
+    from main import app
+
+    monkeypatch.setattr(
+        dm_analytics_routes,
+        "buscar_exames_hemoglobina_glicada",
+        lambda **kwargs: [
+            {
+                "co_seq_exame_hemoglobina_glicd": 1001,
+                "co_exame_requisitado": 501,
+                "vl_hemoglobina_glicada": 6.8,
+                "dt_exame": "2024-06-15T00:00:00",
+                "co_seq_prontuario": 201,
+                "co_cidadao": 101,
+            },
+            {
+                "co_seq_exame_hemoglobina_glicd": 1002,
+                "co_exame_requisitado": 502,
+                "vl_hemoglobina_glicada": 7.2,
+                "dt_exame": "2024-05-10T00:00:00",
+                "co_seq_prontuario": 202,
+                "co_cidadao": 102,
+            },
+        ],
+    )
+
+    with TestClient(app) as c:
+        yield c
+
+
 class TestHealthCheck:
     """Testes do endpoint de health check."""
 
@@ -277,3 +309,33 @@ class TestIndividuosDiabetes:
         assert data["dados"][0]["hba1c_atual"]["data"] == "2026-03-05"
         assert data["dados"][0]["ultimas_medicoes"][0]["exame"] == "HbA1c"
         assert data["dados"][0]["status_atual"] == "Descontrolado"
+
+
+class TestExamesHemoglobinaGlicada:
+    """Testes do endpoint de exames de hemoglobina glicada (diabetes)."""
+
+    def test_exames_dm_limit_invalido_retorna_422(self, client_exames_dm_mock):
+        r = client_exames_dm_mock.get("/api/v1/diabetes/exames", params={"limit": 0})
+        assert r.status_code == 422
+        r = client_exames_dm_mock.get("/api/v1/diabetes/exames", params={"limit": 999})
+        assert r.status_code == 422
+
+    def test_exames_dm_retorna_estrutura_esperada(self, client_exames_dm_mock):
+        r = client_exames_dm_mock.get(
+            "/api/v1/diabetes/exames",
+            params={"limit": 10},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert "exames" in data
+        assert "total" in data
+        assert isinstance(data["exames"], list)
+        assert data["total"] == 2
+        assert data["exames"][0]["co_seq_exame_hemoglobina_glicd"] == 1001
+        assert data["exames"][0]["co_exame_requisitado"] == 501
+        assert data["exames"][0]["vl_hemoglobina_glicada"] == 6.8
+        assert data["exames"][0]["dt_exame"] == "2024-06-15T00:00:00"
+        assert data["exames"][0]["co_seq_prontuario"] == 201
+        assert data["exames"][0]["co_cidadao"] == 101
+        assert data["exames"][1]["co_cidadao"] == 102
+        assert data["exames"][1]["vl_hemoglobina_glicada"] == 7.2
