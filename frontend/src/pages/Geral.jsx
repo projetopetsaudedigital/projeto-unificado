@@ -1,5 +1,5 @@
 import React from 'react'
-import { Activity, Building2, BarChart2, CalendarRange, Users, UserCheck } from 'lucide-react'
+import { Activity, Building2, BarChart2, CalendarRange, Users, UserCheck, MapPin } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext.jsx'
 
 function KPICard({ icon: Icon, label, value, cor, subtitle }) {
@@ -34,6 +34,7 @@ export default function Geral() {
   }
 
   const perfil = usuario?.nome
+  const nomeUSF = usuario?.usf || "USF Não Identificada"
 
   const isGestor = perfil === 'Gestor'
   const isEquipe = perfil === 'Equipe'
@@ -57,15 +58,27 @@ export default function Geral() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
 
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800">Visão Geral do Sistema</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          {isGestor
-            ? "Resumo executivo e indicadores chave de desempenho da rede de saúde."
-            : "Resumo de engajamento e utilização da rede de saúde pelos cidadãos."}
-        </p>
-      </div>
+      {/* Cabeçalho USF */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800">Visão Geral do Sistema</h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {isGestor
+              ? "Resumo executivo e indicadores chave de desempenho da rede de saúde."
+              : "Resumo de engajamento e utilização da rede de saúde pelos cidadãos."}
+          </p>
+        </div>
 
+        {/* Badge da USF - Equipe */}
+        {isEquipe && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg self-start sm:self-center">
+            <MapPin size={18} className="text-blue-600" />
+            <span className="text-sm font-semibold text-blue-700">
+              {nomeUSF}
+            </span>
+          </div>
+        )}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
         {isGestor && (
