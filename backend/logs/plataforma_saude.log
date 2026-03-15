@@ -7790,3 +7790,21 @@ LINE 3:         (no_bairro_raw, no_bairro_canonico, no_loteamento, t...
 2026-03-13 14:11:02 | INFO     | main                           | Banco Admin: localhost:5432/Esus (leitura/escrita)
 2026-03-13 14:11:02 | INFO     | main                           | Documentação: http://localhost:8000/docs
 2026-03-13 14:11:02 | INFO     | main                           | ============================================================
+2026-03-13 22:33:28 | INFO     | pa.quality.audit_table         | Tabela de auditoria 'dashboard.tb_auditoria_outliers' pronta.
+2026-03-13 22:33:28 | INFO     | shared.controle                | Tabela tb_controle_processamento pronta.
+2026-03-13 22:33:54 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_medicoes
+2026-03-13 22:34:10 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_cadastros
+2026-03-13 22:35:12 | INFO     | pa.views.manager               | View criada/verificada: dashboard.mv_pa_medicoes_cidadaos
+2026-03-13 22:35:40 | INFO     | scripts.sincronizar_base_geo   | Buscando bairros em: C:\Users\Rafae\OneDrive\Área de Trabalho\PET\projeto-unificado\backend\data\geojson\Bairros.geojson
+2026-03-13 22:35:40 | INFO     | scripts.sincronizar_base_geo   | Populando tb_geocodificacao com base em GeoJSON...
+2026-03-13 22:35:40 | INFO     | scripts.sincronizar_base_geo   |  -> 190 regiões (bairros/loteamentos) geocodificadas com sucesso.
+2026-03-13 22:35:40 | INFO     | scripts.sincronizar_base_geo   | Realizando Fuzzy Match do e-SUS contra a Base Geográfica Oficial...
+2026-03-13 22:35:40 | INFO     | scripts.sincronizar_base_geo   | Buscando bairros em: C:\Users\Rafae\OneDrive\Área de Trabalho\PET\projeto-unificado\backend\data\geojson\Bairros.geojson
+2026-03-13 22:35:42 | INFO     | scripts.sincronizar_base_geo   | Mapeamento concluído: 101 Exatos, 1161 Fuzzy, 873 Órfãos.
+2026-03-13 22:37:20 | INFO     | main                           | ============================================================
+2026-03-13 22:37:20 | INFO     | main                           | Plataforma de Saúde Pública — API iniciada
+2026-03-13 22:37:20 | INFO     | main                           | Ambiente: development
+2026-03-13 22:37:20 | INFO     | main                           | Banco PEC: localhost:5432/esus (somente leitura)
+2026-03-13 22:37:20 | INFO     | main                           | Banco Admin: localhost:5432/admin-esus (leitura/escrita)
+2026-03-13 22:37:20 | INFO     | main                           | Documentação: http://localhost:8000/docs
+2026-03-13 22:37:20 | INFO     | main                           | ============================================================
