@@ -266,3 +266,104 @@ class UbsResponse(BaseModel):
     total: int = Field(description="Número de UBS retornadas.")
     filtros_aplicados: dict
     dados: list[UbsItem]
+
+
+# ─── Individuos com hipertensao ────────────────────────────────────────────
+
+class PerfilPacienteItem(BaseModel):
+    nome: Optional[str] = Field(
+        default=None,
+        description="Nome do paciente quando disponível no cadastro do PEC.",
+        examples=["Ana Carolina Souza"],
+    )
+    idade: Optional[int] = Field(
+        default=None,
+        description="Idade atual do cidadao em anos completos.",
+        examples=[54],
+    )
+    sexo: Optional[str] = Field(
+        default=None,
+        description="Sigla de sexo no cadastro (M/F).",
+        examples=["F"],
+    )
+
+
+class TerritorioPacienteItem(BaseModel):
+    area: Optional[str] = Field(
+        default=None,
+        description="Area de adscricao do cidadao (nu_area).",
+        examples=["2"],
+    )
+    microarea: Optional[str] = Field(
+        default=None,
+        description="Microarea de adscricao do cidadao (nu_micro_area).",
+        examples=["03"],
+    )
+
+
+class MedianaAnualItem(BaseModel):
+    pas: Optional[float] = Field(
+        default=None,
+        description="Mediana da PAS nos ultimos 365 dias.",
+        examples=[150.0],
+    )
+    pad: Optional[float] = Field(
+        default=None,
+        description="Mediana da PAD nos ultimos 365 dias.",
+        examples=[90.0],
+    )
+
+
+class UltimaMedicaoItem(BaseModel):
+    data_medicao: date = Field(
+        description="Data da medicao considerada na lista de ultimas afericoes.",
+        examples=["2026-03-10"],
+    )
+    pas: float = Field(description="PAS da medicao (ou mediana diaria).", examples=[160.0])
+    pad: float = Field(description="PAD da medicao (ou mediana diaria).", examples=[100.0])
+    pressao: str = Field(
+        description="Representacao textual da afericao no formato PAS/PAD.",
+        examples=["160/100"],
+    )
+
+class IndividuoHipertensaoItem(BaseModel):
+    co_cidadao: int = Field(
+        description="Identificador unico do cidadao no e-SUS PEC.",
+        examples=[1234567],
+    )
+    n_medicoes_usadas: int = Field(
+        description="Quantidade de dias usados no calculo da mediana (1 a 3).",
+        examples=[3],
+    )
+    dt_ultima_medicao: date = Field(
+        description="Data da medicao mais recente considerada no calculo.",
+        examples=["2026-03-10"],
+    )
+    paciente_perfil: PerfilPacienteItem = Field(
+        description="Perfil clinico-demografico resumido do paciente.",
+    )
+    territorio: TerritorioPacienteItem = Field(
+        description="Informacoes territoriais operacionais (area e microarea).",
+    )
+    ultimas_medicoes: list[UltimaMedicaoItem] = Field(
+        description="Ate 3 ultimas afericoes de PA no periodo analisado.",
+    )
+    mediana_anual: MedianaAnualItem = Field(
+        description="Mediana anual de PA considerando os ultimos 365 dias.",
+    )
+    outras_condicoes: list[str] = Field(
+        description="Lista de comorbidades e fatores de risco ativos no cadastro.",
+        examples=[["Diabetes", "Problema Renal"]],
+    )
+    status_atual: str = Field(
+        description="Status atual de controle pressorico pela regra da mediana final.",
+        examples=["Descontrolado"],
+    )
+
+
+class IndividuosHipertensaoResponse(BaseModel):
+    total: int = Field(description="Total de individuos hipertensos para os filtros aplicados.")
+    limite: int = Field(description="Tamanho da pagina retornada.")
+    offset: int = Field(description="Deslocamento da pagina atual.")
+    filtros_aplicados: dict = Field(description="Resumo dos filtros usados na consulta.")
+    dados: list[IndividuoHipertensaoItem]
