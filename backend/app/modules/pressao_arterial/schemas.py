@@ -362,7 +362,9 @@ class IndividuoHipertensaoItem(BaseModel):
 
 
 class IndividuosHipertensaoResponse(BaseModel):
-    total: int = Field(description="Total de individuos hipertensos para os filtros aplicados.")
+    total: int = Field(description="Total de individuos para os filtros aplicados.")
+    total_controlados: int = Field(description="Total com mediana recente < 140/90 mmHg.")
+    total_descontrolados: int = Field(description="Total com mediana recente >= 140 ou >= 90 mmHg.")
     limite: int = Field(description="Tamanho da pagina retornada.")
     offset: int = Field(description="Deslocamento da pagina atual.")
     filtros_aplicados: dict = Field(description="Resumo dos filtros usados na consulta.")

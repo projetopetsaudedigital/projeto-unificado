@@ -211,6 +211,15 @@ def buscar_individuos_hipertensos(
     {where_sql}
     """
 
+    totais_status_sql = f"""
+    {cte_sql}
+    SELECT
+        COUNT(*) FILTER (WHERE hip.mediana_pas < 140 AND hip.mediana_pad < 90) AS total_controlados,
+        COUNT(*) FILTER (WHERE NOT (hip.mediana_pas < 140 AND hip.mediana_pad < 90)) AS total_descontrolados
+    {from_sql}
+    {where_sql}
+    """
+
     dados_sql = f"""
     {cte_sql}
     SELECT
@@ -264,6 +273,7 @@ def buscar_individuos_hipertensos(
     """
 
     total_rows = execute_query(total_sql, params)
+    totais_status_rows = execute_query(totais_status_sql, params)
     dados = execute_query(dados_sql, params)
 
     for row in dados:
@@ -300,7 +310,12 @@ def buscar_individuos_hipertensos(
         row.pop("mediana_anual_pad", None)
 
     total = int(total_rows[0]["total"]) if total_rows else 0
+    ts = totais_status_rows[0] if totais_status_rows else {}
+    total_controlados = int(ts.get("total_controlados") or 0)
+    total_descontrolados = int(ts.get("total_descontrolados") or 0)
     return {
         "total": total,
+        "total_controlados": total_controlados,
+        "total_descontrolados": total_descontrolados,
         "dados": dados,
     }

@@ -105,6 +105,8 @@ def listar_individuos_hipertensos(
 
     return {
         "total": resultado["total"],
+        "total_controlados": resultado["total_controlados"],
+        "total_descontrolados": resultado["total_descontrolados"],
         "limite": limite,
         "offset": offset,
         "filtros_aplicados": {
