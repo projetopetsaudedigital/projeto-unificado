@@ -1,12 +1,11 @@
 """
-Listagem operacional de individuos hipertensos.
+Listagem operacional de indivíduos em acompanhamento de pressão arterial.
 
 Regra aplicada:
 - Considera apenas medições dos últimos 365 dias.
 - Consolida múltiplas medições no mesmo dia por mediana diária (PAS/PAD).
-- Usa até os 3 dias mais recentes por indivíduo.
-- Classifica HAS por mediana final: PAS >= 140 ou PAD >= 90.
-- Sem medição no período: indivíduo é excluído.
+- Inclui todos com ao menos 1 dia de medição (mediana dos últimos 3 dias).
+- Status: Controlado = mediana recente < 140/90 mmHg; Descontrolado = caso contrário.
 """
 
 from __future__ import annotations
@@ -35,9 +34,13 @@ def buscar_individuos_hipertensos(
     limite: int = 50,
     offset: int = 0,
 ) -> dict:
-    """Retorna total e página de indivíduos com HAS pela regra de mediana."""
+    """Retorna total e página de indivíduos em acompanhamento de PA.
+    Inclusão: qualquer pessoa com ao menos 1 medição nos últimos 365 dias.
+    Status: Controlado = mediana (últimos 3 dias) < 140/90; Descontrolado = caso contrário.
+    """
     schema = settings.DB_SCHEMA
-    filtros = ["(hip.mediana_pas >= 140 OR hip.mediana_pad >= 90)"]
+    # Incluir todos com mediana calculada; não exige PA alta para entrar na lista
+    filtros = ["1=1"]
     params: dict = {"limite": limite, "offset": offset}
 
     if co_cidadao is not None:
@@ -191,6 +194,8 @@ def buscar_individuos_hipertensos(
     FROM hipertensao_por_mediana hip
     INNER JOIN {schema}.mv_pa_cadastros c
         ON c.co_cidadao = hip.co_cidadao
+    LEFT JOIN mediana_anual_por_cidadao ann
+        ON ann.co_cidadao = hip.co_cidadao
     LEFT JOIN pec.tb_cidadao tc
         ON tc.co_seq_cidadao = c.co_cidadao
     """
@@ -251,8 +256,6 @@ def buscar_individuos_hipertensos(
             ELSE 'Descontrolado'
         END AS status_atual
     {from_sql}
-    LEFT JOIN mediana_anual_por_cidadao ann
-        ON ann.co_cidadao = hip.co_cidadao
     LEFT JOIN ultimas_tres_resumo ult
         ON ult.co_cidadao = hip.co_cidadao
     {where_sql}
