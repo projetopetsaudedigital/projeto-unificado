@@ -55,6 +55,8 @@ router = APIRouter()
     response_model=IndividuosHipertensaoResponse,
 )
 def listar_individuos_hipertensos(
+    co_cidadao: Optional[int] = Query(default=None, description="Filtro por codigo do cidadao (co_cidadao)"),
+    no_cidadao: Optional[str] = Query(default=None, description="Filtro por nome do paciente (contendo)"),
     bairro: Optional[str] = Query(default=None, description="Filtro por bairro normalizado (no_bairro_filtro)"),
     sexo: Optional[str] = Query(default=None, pattern="^[MF]$", description="Filtro por sexo: M ou F"),
     faixa_etaria: Optional[str] = Query(
@@ -62,6 +64,8 @@ def listar_individuos_hipertensos(
         pattern="^(18-29|30-39|40-49|50-59|60-64|65\\+)$",
         description="Filtro por faixa etaria",
     ),
+    nu_area: Optional[str] = Query(default=None, description="Filtro por area de adscricao (nu_area)"),
+    nu_micro_area: Optional[str] = Query(default=None, description="Filtro por microarea de adscricao (nu_micro_area)"),
     co_unidade_saude: Optional[int] = Query(default=None, ge=1, description="Codigo da UBS"),
     st_diabetes: Optional[bool] = Query(default=None, description="Filtro por comorbidade diabetes"),
     data_ultima_medicao_inicio: Optional[date] = Query(default=None, description="Data inicial da ultima medicao"),
@@ -84,9 +88,13 @@ def listar_individuos_hipertensos(
         )
 
     resultado = buscar_individuos_hipertensos(
+        co_cidadao=co_cidadao,
+        no_cidadao=no_cidadao,
         bairro=bairro,
         sexo=sexo,
         faixa_etaria=faixa_etaria,
+        nu_area=nu_area,
+        nu_micro_area=nu_micro_area,
         co_unidade_saude=co_unidade_saude,
         st_diabetes=st_diabetes,
         data_ultima_medicao_inicio=data_ultima_medicao_inicio,
@@ -100,9 +108,13 @@ def listar_individuos_hipertensos(
         "limite": limite,
         "offset": offset,
         "filtros_aplicados": {
+            "co_cidadao": co_cidadao,
+            "no_cidadao": no_cidadao,
             "bairro": bairro,
             "sexo": sexo,
             "faixa_etaria": faixa_etaria,
+            "nu_area": nu_area,
+            "nu_micro_area": nu_micro_area,
             "co_unidade_saude": co_unidade_saude,
             "st_diabetes": st_diabetes,
             "data_ultima_medicao_inicio": data_ultima_medicao_inicio,

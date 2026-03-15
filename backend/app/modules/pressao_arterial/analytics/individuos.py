@@ -21,9 +21,13 @@ from app.core.database import execute_query
 
 def buscar_individuos_hipertensos(
     *,
+    co_cidadao: Optional[int] = None,
+    no_cidadao: Optional[str] = None,
     bairro: Optional[str] = None,
     sexo: Optional[str] = None,
     faixa_etaria: Optional[str] = None,
+    nu_area: Optional[str] = None,
+    nu_micro_area: Optional[str] = None,
     co_unidade_saude: Optional[int] = None,
     st_diabetes: Optional[bool] = None,
     data_ultima_medicao_inicio: Optional[date] = None,
@@ -36,6 +40,10 @@ def buscar_individuos_hipertensos(
     filtros = ["(hip.mediana_pas >= 140 OR hip.mediana_pad >= 90)"]
     params: dict = {"limite": limite, "offset": offset}
 
+    if co_cidadao is not None:
+        filtros.append("hip.co_cidadao = :co_cidadao")
+        params["co_cidadao"] = co_cidadao
+
     if bairro:
         filtros.append("c.no_bairro_filtro = :bairro")
         params["bairro"] = bairro
@@ -47,6 +55,14 @@ def buscar_individuos_hipertensos(
     if faixa_etaria:
         filtros.append("c.faixa_etaria = :faixa_etaria")
         params["faixa_etaria"] = faixa_etaria
+
+    if nu_area:
+        filtros.append("c.nu_area = :nu_area")
+        params["nu_area"] = nu_area
+
+    if nu_micro_area:
+        filtros.append("c.nu_micro_area = :nu_micro_area")
+        params["nu_micro_area"] = nu_micro_area
 
     if co_unidade_saude is not None:
         filtros.append("hip.co_unidade_saude_ultima = :co_unidade_saude")
@@ -63,6 +79,19 @@ def buscar_individuos_hipertensos(
     if data_ultima_medicao_fim is not None:
         filtros.append("hip.dt_ultima_medicao <= :data_ultima_medicao_fim")
         params["data_ultima_medicao_fim"] = data_ultima_medicao_fim
+
+    if no_cidadao:
+        filtros.append(
+            """
+            COALESCE(
+                NULLIF(TRIM(to_jsonb(tc)->>'no_cidadao'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'no_nome'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'no_nome_social'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'ds_nome'), '')
+            ) ILIKE :no_cidadao
+            """
+        )
+        params["no_cidadao"] = f"%{no_cidadao.strip()}%"
 
     where = " AND ".join(filtros)
 
@@ -186,7 +215,7 @@ def buscar_individuos_hipertensos(
             NULLIF(TRIM(to_jsonb(tc)->>'no_nome'), ''),
             NULLIF(TRIM(to_jsonb(tc)->>'no_nome_social'), ''),
             NULLIF(TRIM(to_jsonb(tc)->>'ds_nome'), '')
-        ) AS nome_paciente,
+        ) AS no_cidadao,
         c.idade,
         c.sg_sexo,
         c.nu_area,
@@ -242,7 +271,7 @@ def buscar_individuos_hipertensos(
             ultimas_medicoes = []
 
         row["paciente_perfil"] = {
-            "nome": row.get("nome_paciente"),
+            "nome": row.get("no_cidadao"),
             "idade": row.get("idade"),
             "sexo": row.get("sg_sexo"),
         }
@@ -263,7 +292,7 @@ def buscar_individuos_hipertensos(
         row.pop("mediana_pad", None)
         row.pop("idade", None)
         row.pop("sg_sexo", None)
-        row.pop("nome_paciente", None)
+        row.pop("no_cidadao", None)
         row.pop("mediana_anual_pas", None)
         row.pop("mediana_anual_pad", None)
 

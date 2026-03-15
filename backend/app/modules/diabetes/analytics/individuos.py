@@ -135,7 +135,7 @@ def buscar_individuos_diabetes_descontrolados(
             NULLIF(TRIM(to_jsonb(tc)->>'no_nome'), ''),
             NULLIF(TRIM(to_jsonb(tc)->>'no_nome_social'), ''),
             NULLIF(TRIM(to_jsonb(tc)->>'ds_nome'), '')
-        ) AS nome_paciente,
+        ) AS no_cidadao,
         ult.idade_no_exame,
         ult.sg_sexo,
         tc.nu_area,
@@ -182,7 +182,7 @@ def buscar_individuos_diabetes_descontrolados(
             ultimas_medicoes = []
 
         row["paciente_perfil"] = {
-            "nome": row.get("nome_paciente"),
+            "nome": row.get("no_cidadao"),
             "idade": row.get("idade_no_exame"),
             "sexo": row.get("sg_sexo"),
         }
@@ -198,7 +198,7 @@ def buscar_individuos_diabetes_descontrolados(
         row["outras_condicoes"] = row.get("outras_condicoes") or []
         row["status_atual"] = row.get("controle_glicemico")
 
-        row.pop("nome_paciente", None)
+        row.pop("no_cidadao", None)
         row.pop("idade_no_exame", None)
         row.pop("sg_sexo", None)
         row.pop("nu_area", None)
