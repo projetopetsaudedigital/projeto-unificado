@@ -108,20 +108,15 @@ export default function PainelHipertensao() {
     return individuosDaAPI.filter(i => i.status_atual === filtroStatus)
   }, [individuosDaAPI, filtroStatus])
 
-  const estatisticas = useMemo(() => {
-    if (!individuosFiltrados.length) return { controlados: 0, descontrolados: 0 }
-    return individuosFiltrados.reduce((acc, curr) => {
-      if (curr.status_atual === 'Controlado') acc.controlados++
-      else if (curr.status_atual === 'Descontrolado') acc.descontrolados++
-      return acc
-    }, { controlados: 0, descontrolados: 0 })
-  }, [individuosFiltrados])
+  // Totais de Controlado/Descontrolado vêm da API (todos os registros), não só da página atual
+  const totalControlados = data?.total_controlados ?? 0
+  const totalDescontrolados = data?.total_descontrolados ?? 0
 
   useEffect(() => {
     async function carregarKML() {
       try {
         const res = await fetch('/mapa-unidades.kml')
-        if (!res.ok) throw new Error('Arquivo KML não encontrado na pasta public.')
+        if (!res.ok) throw new Error('Arquivo KML não encontrado na pasta public.') 
 
         const kmlText = await res.text()
         const parser = new DOMParser()
@@ -167,12 +162,12 @@ export default function PainelHipertensao() {
         </div>
         <div className="bg-green-50 border border-green-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
           <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Sob Controle</p>
-          <p className="text-3xl font-extrabold text-green-800 mt-2">{estatisticas.controlados}</p>
+          <p className="text-3xl font-extrabold text-green-800 mt-2">{totalControlados}</p>
           <p className="text-xs text-green-600 mt-1">Meta: PA &lt; 140/90 mmHg</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
           <p className="text-xs font-bold text-red-700 uppercase tracking-wide">Em Descontrole</p>
-          <p className="text-3xl font-extrabold text-red-800 mt-2">{estatisticas.descontrolados}</p>
+          <p className="text-3xl font-extrabold text-red-800 mt-2">{totalDescontrolados}</p>
           <p className="text-xs text-red-600 mt-1">Risco cardiovascular elevado</p>
         </div>
       </div>
