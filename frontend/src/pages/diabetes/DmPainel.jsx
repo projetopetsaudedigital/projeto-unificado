@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dmApi } from '../../api/diabetes.js'
+import { useAuth } from '../../contexts/AuthContext.jsx'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, Cell,
@@ -114,7 +115,13 @@ const GRUPO_LABELS = {
 // ── Página principal (filtros unificados, dados dos endpoints) ─────────────────
 
 export default function DmPainel() {
+  const { usuario } = useAuth?.() || {}
+  const isGestor =
+    usuario?.nome?.toLowerCase() === 'gestor' ||
+    usuario?.perfil?.toLowerCase() === 'admin'
+
   const [busca, setBusca] = useState('')
+  const [filtroUbsGestor, setFiltroUbsGestor] = useState('')
   const [filtroFaixa, setFiltroFaixa] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
   const [filtroArea, setFiltroArea] = useState('')
@@ -122,6 +129,10 @@ export default function DmPainel() {
   const [anoInicio, setAnoInicio] = useState(anoAtual - 1)
   const [anoFim, setAnoFim] = useState(anoAtual)
   const [offset, setOffset] = useState(0)
+
+  const coUnidadeSaudeAtiva = isGestor
+    ? (filtroUbsGestor ? Number(filtroUbsGestor) : undefined)
+    : undefined
 
   const paramsIndividuos = (() => {
     const p = {
@@ -131,6 +142,7 @@ export default function DmPainel() {
       controle_status: filtroStatus || undefined,
       nu_area: filtroArea || undefined,
       nu_micro_area: filtroMicroarea || undefined,
+      co_unidade_saude: coUnidadeSaudeAtiva || undefined,
     }
     const termo = busca.trim()
     if (termo) {
@@ -144,10 +156,18 @@ export default function DmPainel() {
   const paramsAno = { ano_inicio: anoInicio, ano_fim: anoFim }
 
   const { data: dadosIndividuos, isLoading: loadIndividuos, isError: errIndividuos } = useQuery({
-    queryKey: ['dm-individuos', busca, filtroFaixa, filtroStatus, filtroArea, filtroMicroarea, offset],
+    queryKey: ['dm-individuos', busca, filtroUbsGestor, filtroFaixa, filtroStatus, filtroArea, filtroMicroarea, offset],
     queryFn: () => dmApi.individuos(paramsIndividuos),
     keepPreviousData: true,
   })
+
+  const { data: ubsData } = useQuery({
+    queryKey: ['dm-ubs-lista'],
+    queryFn: () => dmApi.ubs({}),
+    enabled: isGestor,
+    staleTime: 60_000,
+  })
+  const listaUbs = ubsData?.dados ?? []
 
   const { data: kpis, isLoading: loadKpis } = useQuery({
     queryKey: ['dm-kpis'],
@@ -177,100 +197,62 @@ export default function DmPainel() {
   const temDadosHistograma = Array.isArray(histograma) && histograma.length > 0
   const temDadosFaixaEtaria = Array.isArray(faixaEtaria) && faixaEtaria.length > 0
 
+  // ── Painel extra para gestor: controle glicêmico agregado ────────────────────
+  const { data: controleGrupo, isLoading: loadControleGrupo } = useQuery({
+    queryKey: ['dm-controle-grupo-gestor', paramsAno],
+    queryFn: () => dmApi.controleGrupo(paramsAno),
+    enabled: isGestor,
+  })
+
+  const dadosFaixaPorStatus = useMemo(() => {
+    if (!Array.isArray(controleGrupo)) return { controlados: [], descontrolados: [] }
+    const base = { Controlado: [], Descontrolado: [] }
+    for (const row of controleGrupo) {
+      const status = row.controle_glicemico
+      if (!base[status]) continue
+      base[status].push({
+        faixa_etaria: row.grupo_etario,
+        total: Number(row.total ?? 0),
+      })
+    }
+    return {
+      controlados: base.Controlado.sort((a, b) => a.faixa_etaria.localeCompare(b.faixa_etaria)),
+      descontrolados: base.Descontrolado.sort((a, b) => a.faixa_etaria.localeCompare(b.faixa_etaria)),
+    }
+  }, [controleGrupo])
+
+  const dadosAreaMicro = useMemo(() => {
+    if (!Array.isArray(dados)) return []
+    const agg = new Map()
+    for (const row of dados) {
+      const terr = row.territorio || {}
+      const area = terr.area ?? '—'
+      const micro = terr.microarea ?? '—'
+      const status = row.status_atual || 'Indefinido'
+      const key = `${area}|${micro}`
+      const prev = agg.get(key) || {
+        area,
+        microarea: micro,
+        controlados: 0,
+        descontrolados: 0,
+      }
+      if (status === 'Controlado') prev.controlados += 1
+      else if (status === 'Descontrolado') prev.descontrolados += 1
+      agg.set(key, prev)
+    }
+    return Array.from(agg.values()).sort((a, b) => {
+      if (a.area === b.area) return `${a.microarea}`.localeCompare(`${b.microarea}`)
+      return `${a.area}`.localeCompare(`${b.area}`)
+    })
+  }, [dados])
+
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen font-sans text-slate-900">
       <div>
         <h1 className="text-xl font-semibold text-slate-800">Painel — Diabetes Mellitus</h1>
         <p className="text-sm text-slate-500 mt-1">
           Controle glicêmico baseado em HbA1c · Critérios SBD 2024
         </p>
-      </div>
-
-      {/* Filtros unificados (aplicados ao painel e ao prontuário) */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[180px]">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Paciente (nome ou código)</label>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={busca}
-              onChange={(e) => { setBusca(e.target.value); setOffset(0); }}
-              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
-            />
-          </div>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Faixa etária</label>
-          <select
-            value={filtroFaixa}
-            onChange={(e) => { setFiltroFaixa(e.target.value); setOffset(0); }}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-44 outline-none bg-white"
-          >
-            <option value="">Todas</option>
-            <option value="18-29">18-29 anos</option>
-            <option value="30-39">30-39 anos</option>
-            <option value="40-49">40-49 anos</option>
-            <option value="50-59">50-59 anos</option>
-            <option value="60-64">60-64 anos</option>
-            <option value="65+">65+ anos</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
-          <select
-            value={filtroStatus}
-            onChange={(e) => { setFiltroStatus(e.target.value); setOffset(0); }}
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-40 outline-none bg-white"
-          >
-            <option value="">Todos</option>
-            <option value="Controlado">Controlado</option>
-            <option value="Descontrolado">Descontrolado</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Área</label>
-          <input
-            type="text"
-            value={filtroArea}
-            onChange={(e) => { setFiltroArea(e.target.value); setOffset(0); }}
-            placeholder="Ex: 046"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-24 outline-none bg-white"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Microárea</label>
-          <input
-            type="text"
-            value={filtroMicroarea}
-            onChange={(e) => { setFiltroMicroarea(e.target.value); setOffset(0); }}
-            placeholder="Ex: 03"
-            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-24 outline-none bg-white"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Ano (gráficos)</label>
-          <div className="flex gap-1">
-            <input
-              type="number"
-              value={anoInicio}
-              onChange={(e) => setAnoInicio(Number(e.target.value) || anoAtual - 1)}
-              min={2000}
-              max={anoAtual}
-              className="border border-slate-300 rounded-lg px-2 py-2 text-sm w-20 outline-none bg-white"
-            />
-            <span className="self-center text-slate-400">–</span>
-            <input
-              type="number"
-              value={anoFim}
-              onChange={(e) => setAnoFim(Number(e.target.value) || anoAtual)}
-              min={2000}
-              max={anoAtual}
-              className="border border-slate-300 rounded-lg px-2 py-2 text-sm w-20 outline-none bg-white"
-            />
-          </div>
-        </div>
       </div>
 
       {/* KPIs: Total monitorado, Controlados e Descontrolados vêm de /individuos; Total exames e HbA1c média de /kpis */}
@@ -279,10 +261,39 @@ export default function DmPainel() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <KpiCard label="Total monitorado" value={fmtN(totalMonitorado)} icon={Users} color="emerald" />
-          <KpiCard label="Total de exames" value={fmtN(kpis?.total_exames)} icon={Activity} color="blue" />
           <KpiCard label="HbA1c média" value={fmtHba1c(kpis?.media_hba1c)} icon={TrendingUp} color="amber" />
           <KpiCard label="Controlados" value={fmtN(totalControlados)} sub={totalMonitorado ? fmtPct((totalControlados / totalMonitorado * 100).toFixed(1)) : null} icon={CheckCircle} color="emerald" />
           <KpiCard label="Descontrolados" value={fmtN(totalDescontrolados)} icon={XCircle} color="red" />
+
+          {/* Filtro de ano (apenas para gráficos) — estilo KPI */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3">
+            <div className="p-2 rounded-lg text-slate-600 bg-slate-50">
+              <TrendingUp size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs text-slate-500">Ano (gráficos)</p>
+              <div className="mt-1 flex items-center ">
+                <input
+                  type="number"
+                  value={anoInicio}
+                  onChange={(e) => setAnoInicio(Number(e.target.value) || anoAtual - 1)}
+                  min={2000}
+                  max={anoAtual}
+                  className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-18 outline-none bg-white"
+                />
+                <span className="text-slate-400">–</span>
+                <input
+                  type="number"
+                  value={anoFim}
+                  onChange={(e) => setAnoFim(Number(e.target.value) || anoAtual)}
+                  min={2000}
+                  max={anoAtual}
+                  className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm w-18 outline-none bg-white"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1">Aplica-se aos gráficos</p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -308,6 +319,89 @@ export default function DmPainel() {
         </div>
       </div>
 
+      {/* Painel do Gestor — apenas para usuários gestores */}
+      {isGestor && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h2 className="font-semibold text-slate-800 mb-4">
+              Distribuição por Área e Microárea (APS)
+            </h2>
+            <p className="text-xs text-slate-500 mb-3">
+              Cidadãos em acompanhamento com último HbA1c em 12 meses, agrupados por território.
+            </p>
+            {loadIndividuos ? (
+              <p className="text-sm text-slate-400">Carregando...</p>
+            ) : dadosAreaMicro.length === 0 ? (
+              <p className="text-sm text-slate-400">
+                Nenhum registro encontrado para os filtros atuais.
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={dadosAreaMicro} margin={{ top: 10, right: 16, left: 0, bottom: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis
+                    dataKey="microarea"
+                    tickFormatter={(v, idx) => {
+                      const row = dadosAreaMicro[idx]
+                      return row ? `${row.area}-${row.microarea}` : v
+                    }}
+                    angle={-25}
+                    textAnchor="end"
+                    height={60}
+                    tick={{ fontSize: 10 }}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="controlados" name="Controlados" stackId="a" fill="#10b981" />
+                  <Bar dataKey="descontrolados" name="Descontrolados" stackId="a" fill="#ef4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="font-semibold text-slate-800 mb-4">
+                Faixa etária (Controlados)
+              </h2>
+              {loadControleGrupo ? (
+                <p className="text-sm text-slate-400">Carregando...</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={dadosFaixaPorStatus.controlados}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="faixa_etaria" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="total" name="Controlados" fill="#10b981" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="font-semibold text-slate-800 mb-4">
+                Faixa etária (Descontrolados)
+              </h2>
+              {loadControleGrupo ? (
+                <p className="text-sm text-slate-400">Carregando...</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={dadosFaixaPorStatus.descontrolados}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="faixa_etaria" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Bar dataKey="total" name="Descontrolados" fill="#ef4444" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HbA1c por grupo etário (endpoint /hba1c/faixa-etaria) */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h2 className="font-semibold text-slate-800 mb-4">HbA1c por grupo etário</h2>
@@ -326,6 +420,94 @@ export default function DmPainel() {
           </div>
         )}
         {!loadFaixaEtaria && !temDadosFaixaEtaria && <p className="text-sm text-slate-400">Sem dados para o período selecionado.</p>}
+      </div>
+
+      {/* Filtros do prontuário (aplicados ao painel e à tabela) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-end shadow-sm">
+        {isGestor && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">USF/UBS</label>
+            <select
+              value={filtroUbsGestor}
+              onChange={(e) => { setFiltroUbsGestor(e.target.value); setOffset(0) }}
+              className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-60 outline-none bg-white"
+            >
+              <option value="">Todas as USFs/UBSs</option>
+              {listaUbs.map(u => (
+                <option key={u.co_seq_unidade_saude} value={u.co_seq_unidade_saude}>
+                  {u.no_unidade_saude}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Paciente (nome ou código)</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={busca}
+              onChange={(e) => { setBusca(e.target.value); setOffset(0); }}
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Faixa etária</label>
+          <select
+            value={filtroFaixa}
+            onChange={(e) => { setFiltroFaixa(e.target.value); setOffset(0); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-44 outline-none bg-white"
+          >
+            <option value="">Todas</option>
+            <option value="18-29">18-29 anos</option>
+            <option value="30-39">30-39 anos</option>
+            <option value="40-49">40-49 anos</option>
+            <option value="50-59">50-59 anos</option>
+            <option value="60-64">60-64 anos</option>
+            <option value="65+">65+ anos</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Área</label>
+          <input
+            type="text"
+            value={filtroArea}
+            onChange={(e) => { setFiltroArea(e.target.value); setOffset(0); }}
+            placeholder="Ex: 046"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-24 outline-none bg-white"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Microárea</label>
+          <input
+            type="text"
+            value={filtroMicroarea}
+            onChange={(e) => { setFiltroMicroarea(e.target.value); setOffset(0); }}
+            placeholder="Ex: 03"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-24 outline-none bg-white"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+          <select
+            value={filtroStatus}
+            onChange={(e) => { setFiltroStatus(e.target.value); setOffset(0); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-40 outline-none bg-white"
+          >
+            <option value="">Todos</option>
+            <option value="Controlado">Controlado</option>
+            <option value="Descontrolado">Descontrolado</option>
+          </select>
+        </div>
+
       </div>
 
       {/* Prontuário (dados de /individuos com os mesmos filtros) */}
