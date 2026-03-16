@@ -12,6 +12,7 @@ async function get(path, params = {}) {
 
 export const dmApi = {
   kpis:               ()        => get('/kpis'),
+  individuos:         (p = {})  => get('/individuos', p),
   tendencia:          (p = {})  => get('/tendencia', p),
   hba1cFaixa:         (p = {})  => get('/hba1c/faixa', p),
   hba1cFaixaEtaria:   (p = {})  => get('/hba1c/faixa-etaria', p),

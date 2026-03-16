@@ -1,12 +1,11 @@
 """
-Listagem operacional de individuos hipertensos.
+Listagem operacional de indivíduos em acompanhamento de pressão arterial.
 
 Regra aplicada:
 - Considera apenas medições dos últimos 365 dias.
 - Consolida múltiplas medições no mesmo dia por mediana diária (PAS/PAD).
-- Usa até os 3 dias mais recentes por indivíduo.
-- Classifica HAS por mediana final: PAS >= 140 ou PAD >= 90.
-- Sem medição no período: indivíduo é excluído.
+- Inclui todos com ao menos 1 dia de medição (mediana dos últimos 3 dias).
+- Status: Controlado = mediana recente < 140/90 mmHg; Descontrolado = caso contrário.
 """
 
 from __future__ import annotations
@@ -21,9 +20,13 @@ from app.core.database import execute_query
 
 def buscar_individuos_hipertensos(
     *,
+    co_cidadao: Optional[int] = None,
+    no_cidadao: Optional[str] = None,
     bairro: Optional[str] = None,
     sexo: Optional[str] = None,
     faixa_etaria: Optional[str] = None,
+    nu_area: Optional[str] = None,
+    nu_micro_area: Optional[str] = None,
     co_unidade_saude: Optional[int] = None,
     st_diabetes: Optional[bool] = None,
     data_ultima_medicao_inicio: Optional[date] = None,
@@ -31,10 +34,18 @@ def buscar_individuos_hipertensos(
     limite: int = 50,
     offset: int = 0,
 ) -> dict:
-    """Retorna total e página de indivíduos com HAS pela regra de mediana."""
+    """Retorna total e página de indivíduos em acompanhamento de PA.
+    Inclusão: qualquer pessoa com ao menos 1 medição nos últimos 365 dias.
+    Status: Controlado = mediana (últimos 3 dias) < 140/90; Descontrolado = caso contrário.
+    """
     schema = settings.DB_SCHEMA
-    filtros = ["(hip.mediana_pas >= 140 OR hip.mediana_pad >= 90)"]
+    # Incluir todos com mediana calculada; não exige PA alta para entrar na lista
+    filtros = ["1=1"]
     params: dict = {"limite": limite, "offset": offset}
+
+    if co_cidadao is not None:
+        filtros.append("hip.co_cidadao = :co_cidadao")
+        params["co_cidadao"] = co_cidadao
 
     if bairro:
         filtros.append("c.no_bairro_filtro = :bairro")
@@ -47,6 +58,14 @@ def buscar_individuos_hipertensos(
     if faixa_etaria:
         filtros.append("c.faixa_etaria = :faixa_etaria")
         params["faixa_etaria"] = faixa_etaria
+
+    if nu_area:
+        filtros.append("c.nu_area = :nu_area")
+        params["nu_area"] = nu_area
+
+    if nu_micro_area:
+        filtros.append("c.nu_micro_area = :nu_micro_area")
+        params["nu_micro_area"] = nu_micro_area
 
     if co_unidade_saude is not None:
         filtros.append("hip.co_unidade_saude_ultima = :co_unidade_saude")
@@ -63,6 +82,19 @@ def buscar_individuos_hipertensos(
     if data_ultima_medicao_fim is not None:
         filtros.append("hip.dt_ultima_medicao <= :data_ultima_medicao_fim")
         params["data_ultima_medicao_fim"] = data_ultima_medicao_fim
+
+    if no_cidadao:
+        filtros.append(
+            """
+            COALESCE(
+                NULLIF(TRIM(to_jsonb(tc)->>'no_cidadao'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'no_nome'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'no_nome_social'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'ds_nome'), '')
+            ) ILIKE :no_cidadao
+            """
+        )
+        params["no_cidadao"] = f"%{no_cidadao.strip()}%"
 
     where = " AND ".join(filtros)
 
@@ -162,6 +194,8 @@ def buscar_individuos_hipertensos(
     FROM hipertensao_por_mediana hip
     INNER JOIN {schema}.mv_pa_cadastros c
         ON c.co_cidadao = hip.co_cidadao
+    LEFT JOIN mediana_anual_por_cidadao ann
+        ON ann.co_cidadao = hip.co_cidadao
     LEFT JOIN pec.tb_cidadao tc
         ON tc.co_seq_cidadao = c.co_cidadao
     """
@@ -177,6 +211,15 @@ def buscar_individuos_hipertensos(
     {where_sql}
     """
 
+    totais_status_sql = f"""
+    {cte_sql}
+    SELECT
+        COUNT(*) FILTER (WHERE hip.mediana_pas < 140 AND hip.mediana_pad < 90) AS total_controlados,
+        COUNT(*) FILTER (WHERE NOT (hip.mediana_pas < 140 AND hip.mediana_pad < 90)) AS total_descontrolados
+    {from_sql}
+    {where_sql}
+    """
+
     dados_sql = f"""
     {cte_sql}
     SELECT
@@ -186,7 +229,7 @@ def buscar_individuos_hipertensos(
             NULLIF(TRIM(to_jsonb(tc)->>'no_nome'), ''),
             NULLIF(TRIM(to_jsonb(tc)->>'no_nome_social'), ''),
             NULLIF(TRIM(to_jsonb(tc)->>'ds_nome'), '')
-        ) AS nome_paciente,
+        ) AS no_cidadao,
         c.idade,
         c.sg_sexo,
         c.nu_area,
@@ -222,8 +265,6 @@ def buscar_individuos_hipertensos(
             ELSE 'Descontrolado'
         END AS status_atual
     {from_sql}
-    LEFT JOIN mediana_anual_por_cidadao ann
-        ON ann.co_cidadao = hip.co_cidadao
     LEFT JOIN ultimas_tres_resumo ult
         ON ult.co_cidadao = hip.co_cidadao
     {where_sql}
@@ -232,6 +273,7 @@ def buscar_individuos_hipertensos(
     """
 
     total_rows = execute_query(total_sql, params)
+    totais_status_rows = execute_query(totais_status_sql, params)
     dados = execute_query(dados_sql, params)
 
     for row in dados:
@@ -242,7 +284,7 @@ def buscar_individuos_hipertensos(
             ultimas_medicoes = []
 
         row["paciente_perfil"] = {
-            "nome": row.get("nome_paciente"),
+            "nome": row.get("no_cidadao"),
             "idade": row.get("idade"),
             "sexo": row.get("sg_sexo"),
         }
@@ -263,12 +305,17 @@ def buscar_individuos_hipertensos(
         row.pop("mediana_pad", None)
         row.pop("idade", None)
         row.pop("sg_sexo", None)
-        row.pop("nome_paciente", None)
+        row.pop("no_cidadao", None)
         row.pop("mediana_anual_pas", None)
         row.pop("mediana_anual_pad", None)
 
     total = int(total_rows[0]["total"]) if total_rows else 0
+    ts = totais_status_rows[0] if totais_status_rows else {}
+    total_controlados = int(ts.get("total_controlados") or 0)
+    total_descontrolados = int(ts.get("total_descontrolados") or 0)
     return {
         "total": total,
+        "total_controlados": total_controlados,
+        "total_descontrolados": total_descontrolados,
         "dados": dados,
     }

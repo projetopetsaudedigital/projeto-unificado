@@ -1,166 +1,333 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  BarChart, Bar, ResponsiveContainer,
-} from 'recharts'
-import { Users, HeartPulse, Percent, MapPin } from 'lucide-react'
-import { api } from '../../api/pressaoArterial.js'
+import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet'
+import { kml } from '@tmcw/togeojson'
+import 'leaflet/dist/leaflet.css'
+import { api } from '../../api/pressaoArterial'
 
-const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
+const VDC_CENTER = [-14.866, -40.844]
+const VDC_ZOOM = 11
 
-function KPICard({ icon: Icon, label, value, cor }) {
+function statusBadge(status) {
+  const isControlado = status === 'Controlado'
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
-      <div className={`p-3 rounded-lg ${cor}`}>
-        <Icon size={22} className="text-white" />
-      </div>
-      <div>
-        <p className="text-xs text-slate-500 uppercase tracking-wide">{label}</p>
-        <p className="text-2xl font-bold text-slate-800 mt-0.5">
-          {value !== undefined ? value.toLocaleString('pt-BR') : '—'}
-        </p>
-      </div>
-    </div>
+    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center inline-flex gap-1.5 w-max ${isControlado ? 'bg-green-100 text-green-800 border-green-200' : 'bg-red-100 text-red-800 border-red-200'
+      }`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${isControlado ? 'bg-green-500' : 'bg-red-500'}`}></span>
+      {status || 'Indefinido'}
+    </span>
   )
 }
 
-function FiltroAnos({ anoInicio, anoFim, onChange }) {
-  return (
-    <div className="flex items-center gap-3 text-sm">
-      <label className="text-slate-600">De</label>
-      <input
-        type="number" min="2015" max="2030" value={anoInicio || ''}
-        onChange={e => onChange('anoInicio', e.target.value ? +e.target.value : null)}
-        placeholder="2020"
-        className="w-24 border border-slate-200 rounded-md px-2 py-1 text-slate-700"
-      />
-      <label className="text-slate-600">até</label>
-      <input
-        type="number" min="2015" max="2030" value={anoFim || ''}
-        onChange={e => onChange('anoFim', e.target.value ? +e.target.value : null)}
-        placeholder="2024"
-        className="w-24 border border-slate-200 rounded-md px-2 py-1 text-slate-700"
-      />
-    </div>
-  )
+function definirFaixaEtaria(idade) {
+  if (!idade && idade !== 0) return '—'
+  if (idade < 18) return 'Criança/Adol.'
+  if (idade <= 59) return 'Adulto'
+  return 'Idoso'
 }
 
-const SERIES_CLASSIFICACAO = [
-  { key: 'normal',        label: 'Normal',  cor: '#22c55e' },
-  { key: 'elevada',       label: 'Elevada', cor: '#f59e0b' },
-  { key: 'has_estagio_1', label: 'HAS I',   cor: '#f97316' },
-  { key: 'has_estagio_2', label: 'HAS II',  cor: '#ef4444' },
-  { key: 'has_estagio_3', label: 'HAS III', cor: '#7f1d1d' },
-]
+// --- Helpers do Mapa ---
+function descobrirNome(properties, fallbackId) {
+  if (!properties) return `Área ${fallbackId}`;
 
-export default function Painel() {
-  const [filtros, setFiltros] = useState({ anoInicio: null, anoFim: null })
+  try {
+    if (properties.name && typeof properties.name === 'string' && properties.name !== 'Polígono' && properties.name !== 'Point') {
+      return properties.name;
+    }
+    if (properties.Name && typeof properties.Name === 'string') {
+      return properties.Name;
+    }
 
-  const { data: kpisData, isLoading: kpiLoading } = useQuery({
-    queryKey: ['kpis'],
-    queryFn: api.kpis,
-  })
+    const chaves = Object.keys(properties);
+    for (let key of chaves) {
+      const keyLower = key.toLowerCase();
+      if (keyLower.includes('nome') || keyLower.includes('unidade') || keyLower.includes('usf') || keyLower.includes('ubs')) {
+        if (properties[key] && typeof properties[key] === 'string') {
+          return properties[key];
+        }
+      }
+    }
 
-  const { data: tendenciaData, isLoading: tendenciaLoading } = useQuery({
-    queryKey: ['tendencia', filtros],
-    queryFn: () => api.tendencia({
-      ano_inicio: filtros.anoInicio,
-      ano_fim: filtros.anoFim,
-    }),
-  })
-
-  const kpis = kpisData?.dados ?? {}
-
-  // O backend retorna uma linha por mês com colunas: normal, elevada, has_estagio_1/2/3, media_pas, media_pad
-  const dadosTendencia = tendenciaData?.dados ?? []
-  const dadosGrafico = dadosTendencia.map(d => ({
-    ...d,
-    mes_label: `${String(d.mes).padStart(2,'0')}/${d.ano}`,
-  }))
-
-  const handleFiltro = (campo, valor) => {
-    setFiltros(prev => ({ ...prev, [campo]: valor }))
+    if (properties.description && typeof properties.description === 'string') {
+      const textoLimpo = properties.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (textoLimpo.length > 0 && textoLimpo.length < 80) {
+        return textoLimpo;
+      }
+    }
+  } catch (erro) {
+    console.warn("Erro ao ler propriedades da área:", erro);
   }
 
+  return `Área Indefinida #${fallbackId}`;
+}
+
+export default function PainelHipertensao() {
+  // --- Estados do Painel ---
+  const [buscaPaciente, setBuscaPaciente] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroFaixa, setFiltroFaixa] = useState('')
+  const [filtroArea, setFiltroArea] = useState('')
+  const [filtroMicroarea, setFiltroMicroarea] = useState('')
+  const [offset, setOffset] = useState(0)
+  const limite = 50
+
+  const [geoJsonData, setGeoJsonData] = useState(null)
+  const [isMapLoading, setIsMapLoading] = useState(true)
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['individuos', buscaPaciente, filtroFaixa, filtroArea, filtroMicroarea, offset],
+    queryFn: () => {
+      const params = {
+        faixa_etaria: filtroFaixa || undefined,
+        nu_area: filtroArea || undefined,
+        nu_micro_area: filtroMicroarea || undefined,
+        limite,
+        offset,
+      }
+
+      const termo = buscaPaciente.trim()
+      if (termo) {
+        const cod = Number(termo)
+        if (Number.isInteger(cod) && !Number.isNaN(cod)) {
+          params.co_cidadao = cod
+        } else {
+          params.no_cidadao = termo
+        }
+      }
+
+      return api.individuos(params)
+    },
+    keepPreviousData: true
+  })
+
+  const individuosDaAPI = data?.dados || []
+  const totalGeral = data?.total || 0
+
+  const individuosFiltrados = useMemo(() => {
+    if (!filtroStatus) return individuosDaAPI
+    return individuosDaAPI.filter(i => i.status_atual === filtroStatus)
+  }, [individuosDaAPI, filtroStatus])
+
+  // Totais de Controlado/Descontrolado vêm da API (todos os registros), não só da página atual
+  const totalControlados = data?.total_controlados ?? 0
+  const totalDescontrolados = data?.total_descontrolados ?? 0
+
+  useEffect(() => {
+    async function carregarKML() {
+      try {
+        const res = await fetch('/mapa-unidades.kml')
+        if (!res.ok) throw new Error('Arquivo KML não encontrado na pasta public.') 
+
+        const kmlText = await res.text()
+        const parser = new DOMParser()
+        const kmlDom = parser.parseFromString(kmlText, 'text/xml')
+        const convertido = kml(kmlDom)
+
+        const dadosSeguros = JSON.parse(JSON.stringify(convertido))
+        setGeoJsonData(dadosSeguros)
+      } catch (err) {
+        console.error('Erro ao carregar mapa:', err)
+      } finally {
+        setIsMapLoading(false)
+      }
+    }
+
+    carregarKML()
+  }, [])
+
+  const estiloArea = (feature) => {
+    return {
+      fillColor: feature?.properties?.fill || '#3b82f6',
+      color: feature?.properties?.stroke || feature?.properties?.fill || '#ffffff',
+      weight: 1.5,
+      fillOpacity: feature?.properties?.['fill-opacity'] || 0.4,
+    }
+  }
+
+  if (isError) return <div className="p-6 text-red-600 bg-red-50 rounded-lg m-6">Erro ao carregar dados da API.</div>
+
   return (
-    <div className="space-y-8">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen font-sans text-slate-900">
       <div>
-        <h1 className="text-2xl font-bold text-slate-800">Painel do Gestor</h1>
-        <p className="text-slate-500 text-sm mt-1">Indicadores gerais de saúde — Pressão Arterial</p>
+        <h1 className="text-xl font-semibold text-slate-800">Painel - Pressão Arterial</h1>
+        <p className="text-sm text-slate-500 mt-1">Controle pressórico · Critérios DBHA 2025</p>
       </div>
+
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard icon={Users}     label="Total de Cadastros"  value={kpis.total_cadastros}       cor="bg-blue-500" />
-        <KPICard icon={HeartPulse}label="Hipertensos"         value={kpis.total_hipertensos}     cor="bg-red-500"  />
-        <KPICard icon={Percent}   label="Prevalência Geral"   value={kpis.prevalencia_geral_pct} cor="bg-amber-500"/>
-        <KPICard icon={MapPin}    label="Bairros"             value={kpis.total_bairros}         cor="bg-emerald-500"/>
+      <div className="flex flex-row gap-3">
+        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex-1 flex flex-col justify-center">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Monitorado</p>
+          <p className="text-3xl font-extrabold text-slate-800 mt-2">{totalGeral.toLocaleString('pt-BR')}</p>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
+          <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Sob Controle</p>
+          <p className="text-3xl font-extrabold text-green-800 mt-2">{totalControlados}</p>
+          <p className="text-xs text-green-600 mt-1">Meta: PA &lt; 140/90 mmHg</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
+          <p className="text-xs font-bold text-red-700 uppercase tracking-wide">Em Descontrole</p>
+          <p className="text-3xl font-extrabold text-red-800 mt-2">{totalDescontrolados}</p>
+          <p className="text-xs text-red-600 mt-1">Risco cardiovascular elevado</p>
+        </div>
       </div>
 
-      {/* Tendência */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800">Evolução Mensal de Medições</h2>
-            <p className="text-sm text-slate-500">Contagem por classificação de PA</p>
-          </div>
-          <FiltroAnos
-            anoInicio={filtros.anoInicio}
-            anoFim={filtros.anoFim}
-            onChange={handleFiltro}
+
+      {/* Filtros da Tabela */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-4 items-end shadow-sm mt-6">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Paciente (nome ou código)</label>
+          <input
+            type="text"
+            value={buscaPaciente}
+            onChange={e => { setBuscaPaciente(e.target.value); setOffset(0); }}
+            placeholder="Digite o nome ou o código do paciente"
+            className="w-full border border-slate-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
 
-        {tendenciaLoading ? (
-          <div className="h-64 flex items-center justify-center text-slate-400">Carregando...</div>
-        ) : dadosGrafico.length === 0 ? (
-          <div className="h-64 flex items-center justify-center text-slate-400">Nenhum dado encontrado</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart data={dadosGrafico} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="mes_label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              {SERIES_CLASSIFICACAO.map(s => (
-                <Line
-                  key={s.key}
-                  type="monotone"
-                  dataKey={s.key}
-                  name={s.label}
-                  stroke={s.cor}
-                  strokeWidth={2}
-                  dot={false}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        )}
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Faixa Etária</label>
+          <select
+            value={filtroFaixa}
+            onChange={e => { setFiltroFaixa(e.target.value); setOffset(0); }}
+            className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-44 outline-none bg-white"
+          >
+            <option value="">Todas as Faixas</option>
+            <option value="18-29">18-29 anos</option>
+            <option value="30-39">30-39 anos</option>
+            <option value="40-49">40-49 anos</option>
+            <option value="50-59">50-59 anos</option>
+            <option value="60-64">60-64 anos</option>
+            <option value="65+">65+ anos</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Área</label>
+          <input
+            type="text"
+            value={filtroArea}
+            onChange={e => { setFiltroArea(e.target.value); setOffset(0); }}
+            placeholder="Ex: 2"
+            className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-24 outline-none bg-white"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Microárea</label>
+          <input
+            type="text"
+            value={filtroMicroarea}
+            onChange={e => { setFiltroMicroarea(e.target.value); setOffset(0); }}
+            placeholder="Ex: 03"
+            className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-24 outline-none bg-white"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+          <select
+            value={filtroStatus}
+            onChange={e => setFiltroStatus(e.target.value)}
+            className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-40 outline-none bg-white"
+          >
+            <option value="">Todos Status</option>
+            <option value="Controlado">Controlado</option>
+            <option value="Descontrolado">Descontrolado</option>
+          </select>
+        </div>
       </div>
 
-      {/* Médias PAS/PAD */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <h2 className="text-lg font-semibold text-slate-800 mb-6">Médias de PAS e PAD por Mês</h2>
-        {tendenciaLoading ? (
-          <div className="h-64 flex items-center justify-center text-slate-400">Carregando...</div>
-        ) : (
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart
-              data={dadosGrafico.slice(0, 24)}
-              margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+      {/* Tabela de Pacientes */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50">
+          <h2 className="text-sm font-semibold text-slate-800">Prontuário Consolidado</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-white text-slate-500 text-xs uppercase tracking-wide border-b border-slate-200">
+              <tr>
+                <th className="px-5 py-3 font-medium">Paciente / Perfil</th>
+                <th className="px-5 py-3 font-medium">Território</th>
+                <th className="px-5 py-3 font-medium text-center">Mediana Anual</th>
+                <th className="px-5 py-3 font-medium">Outras Condições</th>
+                <th className="px-5 py-3 font-medium text-right">Status Atual</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {isLoading ? (
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400 font-medium">Carregando dados...</td></tr>
+              ) : individuosFiltrados.length === 0 ? (
+                <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-400 font-medium">Nenhum registro encontrado.</td></tr>
+              ) : (
+                individuosFiltrados.map(i => {
+                  const perfil = i.paciente_perfil || {}
+                  const mediana = i.mediana_anual || {}
+                  const terr = i.territorio || {}
+
+                  return (
+                    <tr key={i.co_cidadao} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="font-medium text-slate-800">{perfil.nome || i.co_cidadao}</div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          {perfil.idade} anos ({definirFaixaEtaria(perfil.idade)}) • Sexo: {perfil.sexo}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="text-slate-700 font-medium">Área {terr.area || '—'}</div>
+                        <div className="text-xs text-slate-500">Microárea {terr.microarea || '—'}</div>
+                      </td>
+                      <td className="px-5 py-4 text-center">
+                        <div className={`inline-block px-3 py-1 rounded-md text-xs font-bold border ${i.status_atual === 'Descontrolado' ? 'bg-amber-50 text-amber-800 border-amber-200' : 'bg-slate-50 text-slate-700 border-slate-200'
+                          }`}>
+                          {mediana.pas} x {mediana.pad} <span className="text-[10px] font-normal ml-1">mmHg</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4">
+                        {i.outras_condicoes?.length > 0 ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {i.outras_condicoes.map((c, idx) => (
+                              <span key={idx} className="text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-md font-medium">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        ) : <span className="text-slate-400 text-xs italic">Nenhuma informada</span>}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        {statusBadge(i.status_atual)}
+                      </td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginação */}
+        <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-sm">
+          <span className="text-slate-500 font-medium">
+            Mostrando <b>{individuosFiltrados.length}</b> de <b>{totalGeral}</b> registros
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setOffset(Math.max(0, offset - limite))}
+              disabled={offset === 0}
+              className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 font-medium disabled:opacity-50 hover:bg-slate-50 transition-colors"
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-              <XAxis dataKey="mes_label" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
-              <YAxis domain={[60, 160]} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="media_pas" name="PAS média" fill="#3b82f6" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="media_pad" name="PAD média" fill="#93c5fd" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
+              Anterior
+            </button>
+            <button
+              onClick={() => setOffset(offset + limite)}
+              disabled={offset + limite >= totalGeral}
+              className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 font-medium disabled:opacity-50 hover:bg-slate-50 transition-colors"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )

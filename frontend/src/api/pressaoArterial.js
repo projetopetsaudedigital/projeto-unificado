@@ -3,10 +3,19 @@ const BASE = '/api/v1/pressao-arterial'
 async function get(path, params = {}) {
   const url = new URL(BASE + path, window.location.origin)
   Object.entries(params).forEach(([k, v]) => {
-    if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v)
+    if (v !== null && v !== undefined && v !== '') {
+      url.searchParams.set(k, v)
+    }
   })
-  const res = await fetch(url.toString())
+  const token = localStorage.getItem("token")
+  const res = await fetch(url.toString(), {
+    headers: {
+      Authorization: token ? `Bearer ${token}` : undefined
+    }
+  })
+
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
   return res.json()
 }
 
@@ -17,6 +26,7 @@ export const api = {
   fatoresRisco: (p = {})            => get('/fatores-risco', p),
   mapa: (p = {})                    => get('/mapa', p),
   mapaLoteamentos: (p = {})         => get('/mapa-loteamentos', p),
+  individuos: (p = {}) => get('/individuos', p),
   bairros: ()                       => get('/bairros'),
   coberturaBairros: ()              => get('/cobertura-bairros'),
   ubs: (p = {})                     => get('/ubs', p),
