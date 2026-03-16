@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { dmApi } from '../../api/diabetes.js'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   BarChart, Bar, Cell,
 } from 'recharts'
-import { Activity, Users, CheckCircle, XCircle, TrendingUp } from 'lucide-react'
+import { Activity, Users, CheckCircle, XCircle, TrendingUp, Search } from 'lucide-react'
 
 // ── KPI Card ─────────────────────────────────────────────────────────────────
 
@@ -34,6 +35,9 @@ function KpiCard({ label, value, sub, icon: Icon, color = 'emerald' }) {
 const fmtN = v => v != null ? Number(v).toLocaleString('pt-BR') : '—'
 const fmtPct = v => v != null ? `${v}%` : '—'
 const fmtHba1c = v => v != null ? `${Number(v).toFixed(1)}%` : '—'
+
+const LIMITE_PAGINA = 50
+const anoAtual = new Date().getFullYear()
 
 // ── Gráfico tendência ─────────────────────────────────────────────────────────
 
@@ -101,23 +105,77 @@ function GraficoHistograma({ data }) {
   )
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
+const GRUPO_LABELS = {
+  adulto:      'Adultos (18–64)',
+  idoso_65_79: 'Idosos (65–79)',
+  'idoso_80+': 'Idosos (≥80)',
+}
+
+// ── Página principal (filtros unificados, dados dos endpoints) ─────────────────
 
 export default function DmPainel() {
+  const [busca, setBusca] = useState('')
+  const [filtroFaixa, setFiltroFaixa] = useState('')
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroArea, setFiltroArea] = useState('')
+  const [filtroMicroarea, setFiltroMicroarea] = useState('')
+  const [anoInicio, setAnoInicio] = useState(anoAtual - 1)
+  const [anoFim, setAnoFim] = useState(anoAtual)
+  const [offset, setOffset] = useState(0)
+
+  const paramsIndividuos = (() => {
+    const p = {
+      limite: LIMITE_PAGINA,
+      offset,
+      faixa_etaria: filtroFaixa || undefined,
+      controle_status: filtroStatus || undefined,
+      nu_area: filtroArea || undefined,
+      nu_micro_area: filtroMicroarea || undefined,
+    }
+    const termo = busca.trim()
+    if (termo) {
+      const cod = Number(termo)
+      if (Number.isInteger(cod) && !Number.isNaN(cod)) p.co_cidadao = cod
+      else p.no_cidadao = termo
+    }
+    return p
+  })()
+
+  const paramsAno = { ano_inicio: anoInicio, ano_fim: anoFim }
+
+  const { data: dadosIndividuos, isLoading: loadIndividuos, isError: errIndividuos } = useQuery({
+    queryKey: ['dm-individuos', busca, filtroFaixa, filtroStatus, filtroArea, filtroMicroarea, offset],
+    queryFn: () => dmApi.individuos(paramsIndividuos),
+    keepPreviousData: true,
+  })
+
   const { data: kpis, isLoading: loadKpis } = useQuery({
     queryKey: ['dm-kpis'],
     queryFn: dmApi.kpis,
   })
 
   const { data: tendencia, isLoading: loadTend } = useQuery({
-    queryKey: ['dm-tendencia'],
-    queryFn: () => dmApi.tendencia(),
+    queryKey: ['dm-tendencia', paramsAno],
+    queryFn: () => dmApi.tendencia(paramsAno),
   })
 
   const { data: histograma, isLoading: loadHist } = useQuery({
-    queryKey: ['dm-hba1c-faixa'],
-    queryFn: () => dmApi.hba1cFaixa(),
+    queryKey: ['dm-hba1c-faixa', paramsAno],
+    queryFn: () => dmApi.hba1cFaixa(paramsAno),
   })
+
+  const { data: faixaEtaria, isLoading: loadFaixaEtaria } = useQuery({
+    queryKey: ['dm-hba1c-faixa-etaria', paramsAno],
+    queryFn: () => dmApi.hba1cFaixaEtaria(paramsAno),
+  })
+
+  const totalMonitorado = dadosIndividuos?.total ?? 0
+  const totalControlados = dadosIndividuos?.total_controlados ?? 0
+  const totalDescontrolados = dadosIndividuos?.total_descontrolados ?? 0
+  const dados = dadosIndividuos?.dados ?? []
+  const temDadosTendencia = Array.isArray(tendencia) && tendencia.length > 0
+  const temDadosHistograma = Array.isArray(histograma) && histograma.length > 0
+  const temDadosFaixaEtaria = Array.isArray(faixaEtaria) && faixaEtaria.length > 0
 
   return (
     <div className="space-y-6">
@@ -128,32 +186,115 @@ export default function DmPainel() {
         </p>
       </div>
 
-      {/* KPIs */}
-      {loadKpis ? (
+      {/* Filtros unificados (aplicados ao painel e ao prontuário) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-3 items-end">
+        <div className="flex-1 min-w-[180px]">
+          <label className="block text-xs font-medium text-slate-600 mb-1">Paciente (nome ou código)</label>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={busca}
+              onChange={(e) => { setBusca(e.target.value); setOffset(0); }}
+              className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 w-full"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Faixa etária</label>
+          <select
+            value={filtroFaixa}
+            onChange={(e) => { setFiltroFaixa(e.target.value); setOffset(0); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-44 outline-none bg-white"
+          >
+            <option value="">Todas</option>
+            <option value="18-29">18-29 anos</option>
+            <option value="30-39">30-39 anos</option>
+            <option value="40-49">40-49 anos</option>
+            <option value="50-59">50-59 anos</option>
+            <option value="60-64">60-64 anos</option>
+            <option value="65+">65+ anos</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+          <select
+            value={filtroStatus}
+            onChange={(e) => { setFiltroStatus(e.target.value); setOffset(0); }}
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-40 outline-none bg-white"
+          >
+            <option value="">Todos</option>
+            <option value="Controlado">Controlado</option>
+            <option value="Descontrolado">Descontrolado</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Área</label>
+          <input
+            type="text"
+            value={filtroArea}
+            onChange={(e) => { setFiltroArea(e.target.value); setOffset(0); }}
+            placeholder="Ex: 046"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-24 outline-none bg-white"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Microárea</label>
+          <input
+            type="text"
+            value={filtroMicroarea}
+            onChange={(e) => { setFiltroMicroarea(e.target.value); setOffset(0); }}
+            placeholder="Ex: 03"
+            className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-24 outline-none bg-white"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">Ano (gráficos)</label>
+          <div className="flex gap-1">
+            <input
+              type="number"
+              value={anoInicio}
+              onChange={(e) => setAnoInicio(Number(e.target.value) || anoAtual - 1)}
+              min={2000}
+              max={anoAtual}
+              className="border border-slate-300 rounded-lg px-2 py-2 text-sm w-20 outline-none bg-white"
+            />
+            <span className="self-center text-slate-400">–</span>
+            <input
+              type="number"
+              value={anoFim}
+              onChange={(e) => setAnoFim(Number(e.target.value) || anoAtual)}
+              min={2000}
+              max={anoAtual}
+              className="border border-slate-300 rounded-lg px-2 py-2 text-sm w-20 outline-none bg-white"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs: Total monitorado, Controlados e Descontrolados vêm de /individuos; Total exames e HbA1c média de /kpis */}
+      {loadKpis && loadIndividuos ? (
         <p className="text-sm text-slate-400">Carregando KPIs...</p>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <KpiCard label="Pacientes diabéticos" value={fmtN(kpis?.total_diabeticos)} icon={Users} color="emerald" />
+          <KpiCard label="Total monitorado" value={fmtN(totalMonitorado)} icon={Users} color="emerald" />
           <KpiCard label="Total de exames" value={fmtN(kpis?.total_exames)} icon={Activity} color="blue" />
           <KpiCard label="HbA1c média" value={fmtHba1c(kpis?.media_hba1c)} icon={TrendingUp} color="amber" />
-          <KpiCard label="Controlados" value={fmtN(kpis?.total_controlados)} sub={fmtPct(kpis?.pct_controlados)} icon={CheckCircle} color="emerald" />
-          <KpiCard label="Descontrolados" value={fmtN(kpis?.total_descontrolados)} icon={XCircle} color="red" />
+          <KpiCard label="Controlados" value={fmtN(totalControlados)} sub={totalMonitorado ? fmtPct((totalControlados / totalMonitorado * 100).toFixed(1)) : null} icon={CheckCircle} color="emerald" />
+          <KpiCard label="Descontrolados" value={fmtN(totalDescontrolados)} icon={XCircle} color="red" />
         </div>
       )}
 
-      {/* Gráficos */}
+      {/* Gráficos (dados dos endpoints; mensagem quando não houver dados) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Tendência mensal */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-semibold text-slate-800 mb-4">HbA1c média mensal</h2>
-          {loadTend ? (
-            <p className="text-sm text-slate-400">Carregando...</p>
-          ) : (
-            <GraficoTendencia data={tendencia} />
-          )}
+          {loadTend && <p className="text-sm text-slate-400">Carregando...</p>}
+          {!loadTend && temDadosTendencia && <GraficoTendencia data={tendencia} />}
+          {!loadTend && !temDadosTendencia && <p className="text-sm text-slate-400">Sem dados para o período selecionado.</p>}
         </div>
 
-        {/* Histograma */}
         <div className="bg-white rounded-xl border border-slate-200 p-5">
           <h2 className="font-semibold text-slate-800 mb-1">Distribuição de HbA1c</h2>
           <p className="text-xs text-slate-400 mb-3">
@@ -161,48 +302,167 @@ export default function DmPainel() {
             <span className="inline-block w-2 h-2 rounded-full bg-amber-400 mr-1" />{'7–8%: Atenção · '}
             <span className="inline-block w-2 h-2 rounded-full bg-red-500 mr-1" />{'>8%: Descontrolado'}
           </p>
-          {loadHist ? (
-            <p className="text-sm text-slate-400">Carregando...</p>
-          ) : (
-            <GraficoHistograma data={histograma} />
-          )}
+          {loadHist && <p className="text-sm text-slate-400">Carregando...</p>}
+          {!loadHist && temDadosHistograma && <GraficoHistograma data={histograma} />}
+          {!loadHist && !temDadosHistograma && <p className="text-sm text-slate-400">Sem dados para o período selecionado.</p>}
         </div>
       </div>
 
-      {/* Grupos etários */}
-      <DmGruposEtarios />
+      {/* HbA1c por grupo etário (endpoint /hba1c/faixa-etaria) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <h2 className="font-semibold text-slate-800 mb-4">HbA1c por grupo etário</h2>
+        {loadFaixaEtaria && <p className="text-sm text-slate-400">Carregando...</p>}
+        {!loadFaixaEtaria && temDadosFaixaEtaria && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {faixaEtaria.map(row => (
+              <div key={row.grupo_etario} className="bg-slate-50 rounded-lg p-4 text-center">
+                <p className="text-sm font-medium text-slate-700">{GRUPO_LABELS[row.grupo_etario] ?? row.grupo_etario}</p>
+                <p className="text-2xl font-bold text-emerald-700 mt-1">{Number(row.media_hba1c).toFixed(1)}%</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Meta: {row.meta_sbd}% · {fmtN(row.total_exames)} exames
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+        {!loadFaixaEtaria && !temDadosFaixaEtaria && <p className="text-sm text-slate-400">Sem dados para o período selecionado.</p>}
+      </div>
+
+      {/* Prontuário (dados de /individuos com os mesmos filtros) */}
+      <TabelaProntuario
+        dados={dados}
+        total={totalMonitorado}
+        isLoading={loadIndividuos}
+        isError={errIndividuos}
+        offset={offset}
+        setOffset={setOffset}
+      />
     </div>
   )
 }
 
-const GRUPO_LABELS = {
-  adulto:      'Adultos (18–64)',
-  idoso_65_79: 'Idosos (65–79)',
-  'idoso_80+': 'Idosos (≥80)',
-}
+// ── Tabela de Prontuário (apresentação; dados vêm do pai) ─────────────────────
 
-function DmGruposEtarios() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['dm-hba1c-faixa-etaria'],
-    queryFn: () => dmApi.hba1cFaixaEtaria(),
-  })
-
-  if (isLoading) return null
-
+function TabelaProntuario({ dados, total, isLoading, isError, offset, setOffset }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <h2 className="font-semibold text-slate-800 mb-4">HbA1c por grupo etário</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {data?.map(row => (
-          <div key={row.grupo_etario} className="bg-slate-50 rounded-lg p-4 text-center">
-            <p className="text-sm font-medium text-slate-700">{GRUPO_LABELS[row.grupo_etario] ?? row.grupo_etario}</p>
-            <p className="text-2xl font-bold text-emerald-700 mt-1">{Number(row.media_hba1c).toFixed(1)}%</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Meta: {row.meta_sbd}% · {fmtN(row.total_exames)} exames
-            </p>
-          </div>
-        ))}
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="p-5 border-b border-slate-100">
+        <h2 className="text-lg font-semibold text-slate-800">Prontuário e Acompanhamento</h2>
+        <p className="text-sm text-slate-500 mt-1">
+          Pacientes em acompanhamento (último HbA1c em 12 meses) · Critérios SBD
+        </p>
       </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm whitespace-nowrap">
+          <thead className="bg-slate-50 text-slate-600 font-medium border-b border-slate-200">
+            <tr>
+              <th className="px-6 py-4">Paciente / Perfil</th>
+              <th className="px-6 py-4">Território</th>
+              <th className="px-6 py-4">HbA1c (último)</th>
+              <th className="px-6 py-4">Outras Condições</th>
+              <th className="px-6 py-4 text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 text-slate-700">
+            {isError && (
+              <tr>
+                <td colSpan="5" className="px-6 py-8 text-center text-red-600">
+                  Erro ao carregar dados da API.
+                </td>
+              </tr>
+            )}
+            {!isError && isLoading && (
+              <tr>
+                <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
+                  Carregando...
+                </td>
+              </tr>
+            )}
+            {!isError && !isLoading && dados.length === 0 && (
+              <tr>
+                <td colSpan="5" className="px-6 py-8 text-center text-slate-400">
+                  Nenhum paciente encontrado para os filtros informados.
+                </td>
+              </tr>
+            )}
+            {!isError && !isLoading && dados.length > 0 && dados.map((row) => {
+              const perfil = row.paciente_perfil || {}
+              const terr = row.territorio || {}
+              const hba1c = row.hba1c_atual
+              const isControlado = row.status_atual === 'Controlado'
+              return (
+                <tr key={row.co_cidadao} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="font-medium text-slate-900">{perfil.nome ?? row.co_cidadao}</div>
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      {perfil.idade != null && `${perfil.idade} anos`} · Sexo: {perfil.sexo ?? '—'}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-slate-700">Área {terr.area ?? '—'}</div>
+                    <div className="text-xs text-slate-500">Microárea {terr.microarea ?? '—'}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {hba1c?.valor != null ? (
+                      <span className="font-mono font-medium">{Number(hba1c.valor).toFixed(1)}%</span>
+                    ) : '—'}
+                    {hba1c?.data && (
+                      <div className="text-xs text-slate-500 mt-0.5">{hba1c.data}</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {row.outras_condicoes?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {row.outras_condicoes.map((c, i) => (
+                          <span key={i} className="text-xs px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded font-medium">
+                            {c}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 text-xs italic">Nenhuma informada</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                      isControlado ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                    }`}>
+                      {row.status_atual ?? '—'}
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {total > 0 && (
+        <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-sm">
+          <span className="text-slate-500 font-medium">
+            Mostrando <b>{dados.length}</b> de <b>{total}</b> registros
+          </span>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setOffset(Math.max(0, offset - LIMITE_PAGINA))}
+              disabled={offset === 0}
+              className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 font-medium disabled:opacity-50 hover:bg-slate-50"
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              onClick={() => setOffset(offset + LIMITE_PAGINA)}
+              disabled={offset + LIMITE_PAGINA >= total}
+              className="px-4 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-600 font-medium disabled:opacity-50 hover:bg-slate-50"
+            >
+              Próxima
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
