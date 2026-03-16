@@ -156,21 +156,26 @@ def buscar_painel_gestor_controle_pressorico(
     ORDER BY b.nu_area NULLS LAST, b.nu_micro_area NULLS LAST, b.status_atual
     """
 
-    # 3) Mediana de quantidade de dias usados no cálculo por USF
+    # 3) Quantidade total de medições de PA no último ano por USF
     mediana_medicoes_usf_sql = f"""
-    {base_cte}
+    WITH medicoes_12m AS (
+        SELECT
+            mc.co_unidade_saude,
+            COUNT(*) AS total_medicoes
+        FROM {schema}.mv_pa_medicoes_cidadaos mc
+        WHERE mc.dt_medicao >= (CURRENT_DATE - INTERVAL '365 days')
+          AND mc.nu_medicao_pressao_arterial ~ '^[0-9]+/[0-9]+$'
+        GROUP BY mc.co_unidade_saude
+    )
     SELECT
-        b.co_unidade_saude_ultima AS co_unidade_saude,
+        m.co_unidade_saude,
         u.no_unidade_saude,
-        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY b.n_medicoes_usadas) AS mediana_n_medicoes,
-        AVG(b.n_medicoes_usadas)::NUMERIC(10,2) AS media_n_medicoes,
-        COUNT(*) AS total_individuos
-    FROM base b
+        m.total_medicoes
+    FROM medicoes_12m m
     LEFT JOIN tb_unidade_saude u
-        ON u.co_seq_unidade_saude = b.co_unidade_saude_ultima
-    WHERE {where}
-    GROUP BY b.co_unidade_saude_ultima, u.no_unidade_saude
-    ORDER BY total_individuos DESC
+        ON u.co_seq_unidade_saude = m.co_unidade_saude
+    WHERE {where.replace("hip.co_unidade_saude_ultima", "m.co_unidade_saude")}
+    ORDER BY m.total_medicoes DESC
     """
 
     # 4-5) Sexo por status
