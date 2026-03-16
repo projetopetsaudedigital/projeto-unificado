@@ -192,6 +192,20 @@ export default function PainelHipertensao() {
     }))
   }, [gestorData])
 
+  const medianaTotalMedicoesUltimoAno = useMemo(() => {
+    if (!dadosMedianaMedicoesUSF.length) return null
+    const valores = dadosMedianaMedicoesUSF
+      .map(r => r.total_medicoes)
+      .filter(v => Number.isFinite(v))
+      .sort((a, b) => a - b)
+    if (!valores.length) return null
+    const meio = Math.floor(valores.length / 2)
+    if (valores.length % 2 === 0) {
+      return Math.round((valores[meio - 1] + valores[meio]) / 2)
+    }
+    return valores[meio]
+  }, [dadosMedianaMedicoesUSF])
+
   const dadosArea = useMemo(() => {
     const rows = gestorData?.por_area_microarea ?? []
     const agg = new Map()
@@ -300,7 +314,7 @@ export default function PainelHipertensao() {
 
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
         <KpiCard
           label="Total monitorado"
           value={totalGeral.toLocaleString('pt-BR')}
@@ -321,6 +335,17 @@ export default function PainelHipertensao() {
           icon={XCircle}
           color="red"
         />
+        {medianaTotalMedicoesUltimoAno != null && (
+                  <div className="shrink-0">
+                    <KpiCard
+                      label="Mediana de medições/USF (últ. ano)"
+                      value={medianaTotalMedicoesUltimoAno.toLocaleString('pt-BR')}
+                      sub="Total de registros de PA por unidade"
+                      icon={Activity}
+                      color="blue"
+                    />
+                  </div>
+                )}
       </div>
 
       {/* Painel do Gestor (gráficos e KPIs adicionais) */}
@@ -329,9 +354,16 @@ export default function PainelHipertensao() {
 
           <div className="grid gap-6">
             <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <h2 className="font-semibold text-slate-800 mb-4">
-                Controle vs descontrole por USF
-              </h2>
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="font-semibold text-slate-800">
+                    Controle vs descontrole por USF
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Situação atual dos cidadãos acompanhados por unidade de saúde.
+                  </p>
+                </div>
+              </div>
 
               <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={dadosPorUSF} margin={{ top: 10, right: 16, left: 0, bottom: 40 }}>
@@ -342,23 +374,6 @@ export default function PainelHipertensao() {
                   <Legend />
                   <Bar dataKey="controlados" name="Controlados" stackId="a" fill="#10b981" />
                   <Bar dataKey="descontrolados" name="Descontrolados" stackId="a" fill="#ef4444" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <h2 className="font-semibold text-slate-800 mb-4">
-                Total de medições de PA (últ. ano) por USF
-              </h2>
-
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={dadosMedianaMedicoesUSF} margin={{ top: 10, right: 16, left: 0, bottom: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                  <XAxis dataKey="usf" interval={0} angle={-25} textAnchor="end" height={60} tick={false} />
-                  <YAxis tick={{ fontSize: 11 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="total_medicoes" name="Total de medições" fill="#3b82f6" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
