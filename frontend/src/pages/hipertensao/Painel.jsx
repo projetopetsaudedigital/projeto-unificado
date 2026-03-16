@@ -5,6 +5,7 @@ import { kml } from '@tmcw/togeojson'
 import 'leaflet/dist/leaflet.css'
 import { api } from '../../api/pressaoArterial'
 import { useAuth } from '../../contexts/AuthContext.jsx'
+import { Activity, Users, CheckCircle, XCircle } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
@@ -28,6 +29,27 @@ function definirFaixaEtaria(idade) {
   if (idade < 18) return 'Criança/Adol.'
   if (idade <= 59) return 'Adulto'
   return 'Idoso'
+}
+
+function KpiCard({ label, value, sub, icon: Icon, color = 'blue' }) {
+  const colors = {
+    emerald: 'text-emerald-600 bg-emerald-50',
+    blue:    'text-blue-600 bg-blue-50',
+    amber:   'text-amber-600 bg-amber-50',
+    red:     'text-red-600 bg-red-50',
+  }
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3">
+      <div className={`p-2 rounded-lg ${colors[color]}`}>
+        <Icon size={18} />
+      </div>
+      <div>
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-xl font-bold text-slate-800">{value ?? '—'}</p>
+        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      </div>
+    </div>
+  )
 }
 
 // --- Helpers do Mapa ---
@@ -278,21 +300,27 @@ export default function PainelHipertensao() {
 
 
       {/* KPIs */}
-      <div className="flex flex-row gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex-1 flex flex-col justify-center">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Monitorado</p>
-          <p className="text-3xl font-extrabold text-slate-800 mt-2">{totalGeral.toLocaleString('pt-BR')}</p>
-        </div>
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
-          <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Sob Controle</p>
-          <p className="text-3xl font-extrabold text-green-800 mt-2">{totalControlados}</p>
-          <p className="text-xs text-green-600 mt-1">Meta: PA &lt; 140/90 mmHg</p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
-          <p className="text-xs font-bold text-red-700 uppercase tracking-wide">Em Descontrole</p>
-          <p className="text-3xl font-extrabold text-red-800 mt-2">{totalDescontrolados}</p>
-          <p className="text-xs text-red-600 mt-1">Risco cardiovascular elevado</p>
-        </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-3">
+        <KpiCard
+          label="Total monitorado"
+          value={totalGeral.toLocaleString('pt-BR')}
+          icon={Users}
+          color="blue"
+        />
+        <KpiCard
+          label="Sob controle"
+          value={totalControlados?.toLocaleString?.('pt-BR') ?? totalControlados}
+          sub="Meta: PA < 140/90 mmHg"
+          icon={CheckCircle}
+          color="emerald"
+        />
+        <KpiCard
+          label="Em descontrole"
+          value={totalDescontrolados?.toLocaleString?.('pt-BR') ?? totalDescontrolados}
+          sub="Risco cardiovascular elevado"
+          icon={XCircle}
+          color="red"
+        />
       </div>
 
       {/* Painel do Gestor (gráficos e KPIs adicionais) */}
