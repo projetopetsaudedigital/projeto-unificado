@@ -34,6 +34,7 @@ from app.modules.pressao_arterial.analytics.mapa import (
 )
 from app.modules.pressao_arterial.analytics.ubs import buscar_dados_ubs
 from app.modules.pressao_arterial.analytics.individuos import buscar_individuos_hipertensos
+from app.modules.pressao_arterial.analytics.gestor import buscar_painel_gestor_controle_pressorico
 from app.auth.jwt import get_usuario_obrigatorio
 from app.modules.pressao_arterial.schemas import (
     KPIsResponse,
@@ -47,6 +48,15 @@ from app.modules.pressao_arterial.schemas import (
 )
 
 router = APIRouter()
+
+
+@router.get("/gestor/controle", summary="Painel do gestor: agregações de controle pressórico")
+def painel_gestor_controle(
+    co_unidade_saude: Optional[int] = Query(default=None, ge=1, description="Filtrar por UBS/USF"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
+):
+    _ = usuario
+    return buscar_painel_gestor_controle_pressorico(co_unidade_saude=co_unidade_saude)
 
 
 @router.get(
