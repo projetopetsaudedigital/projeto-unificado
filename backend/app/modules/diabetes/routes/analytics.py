@@ -3,10 +3,9 @@ Endpoints de analytics do módulo Diabetes.
 """
 
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
-from app.auth.jwt import get_usuario_obrigatorio
 from app.modules.diabetes.analytics.kpis import buscar_kpis_diabetes
 from app.modules.diabetes.analytics.individuos import buscar_individuos_diabetes_descontrolados
 from app.modules.diabetes.analytics.tendencia import (
@@ -29,10 +28,12 @@ router = APIRouter()
 
 @router.get(
     "/individuos",
-    summary="Lista operacional de individuos descontrolados em diabetes",
+    summary="Lista operacional de individuos em acompanhamento de diabetes",
     response_model=IndividuosDiabetesResponse,
 )
 def individuos_diabetes(
+    co_cidadao: Optional[int] = Query(default=None, description="Filtro por codigo do cidadao"),
+    no_cidadao: Optional[str] = Query(default=None, description="Filtro por nome do paciente (contendo)"),
     bairro: Optional[str] = Query(default=None, description="Filtro por bairro normalizado"),
     sexo: Optional[str] = Query(default=None, pattern="^[MF]$", description="Filtro por sexo: M ou F"),
     faixa_etaria: Optional[str] = Query(
@@ -40,15 +41,19 @@ def individuos_diabetes(
         pattern="^(18-29|30-39|40-49|50-59|60-64|65\\+)$",
         description="Filtro por faixa etaria",
     ),
+    nu_area: Optional[str] = Query(default=None, description="Filtro por area de adscricao"),
+    nu_micro_area: Optional[str] = Query(default=None, description="Filtro por microarea de adscricao"),
+    controle_status: Optional[str] = Query(
+        default=None,
+        pattern="^(Controlado|Descontrolado)$",
+        description="Filtro por status de controle glicemico",
+    ),
     data_ultimo_exame_inicio: Optional[date] = Query(default=None, description="Data inicial do ultimo exame"),
     data_ultimo_exame_fim: Optional[date] = Query(default=None, description="Data final do ultimo exame"),
     limite: int = Query(default=50, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
-    usuario: dict = Depends(get_usuario_obrigatorio),
 ):
-    """Lista individuos descontrolados pelo ultimo exame de HbA1c no periodo de 12 meses."""
-    _ = usuario
-
+    """Lista individuos em acompanhamento (ultimo HbA1c em 12 meses). Inclui controlados e descontrolados."""
     if (
         data_ultimo_exame_inicio is not None
         and data_ultimo_exame_fim is not None
@@ -60,9 +65,14 @@ def individuos_diabetes(
         )
 
     resultado = buscar_individuos_diabetes_descontrolados(
+        co_cidadao=co_cidadao,
+        no_cidadao=no_cidadao,
         bairro=bairro,
         sexo=sexo,
         faixa_etaria=faixa_etaria,
+        nu_area=nu_area,
+        nu_micro_area=nu_micro_area,
+        controle_status=controle_status,
         data_ultimo_exame_inicio=data_ultimo_exame_inicio,
         data_ultimo_exame_fim=data_ultimo_exame_fim,
         limite=limite,
@@ -71,12 +81,19 @@ def individuos_diabetes(
 
     return {
         "total": resultado["total"],
+        "total_controlados": resultado["total_controlados"],
+        "total_descontrolados": resultado["total_descontrolados"],
         "limite": limite,
         "offset": offset,
         "filtros_aplicados": {
+            "co_cidadao": co_cidadao,
+            "no_cidadao": no_cidadao,
             "bairro": bairro,
             "sexo": sexo,
             "faixa_etaria": faixa_etaria,
+            "nu_area": nu_area,
+            "nu_micro_area": nu_micro_area,
+            "controle_status": controle_status,
             "data_ultimo_exame_inicio": data_ultimo_exame_inicio,
             "data_ultimo_exame_fim": data_ultimo_exame_fim,
         },

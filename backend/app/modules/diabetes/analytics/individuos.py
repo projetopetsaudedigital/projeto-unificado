@@ -1,10 +1,10 @@
 """
-Listagem operacional de individuos descontrolados em diabetes.
+Listagem operacional de individuos em acompanhamento de diabetes.
 
 Regra aplicada:
 - Considera apenas exames de HbA1c dos ultimos 12 meses.
 - Seleciona somente o ultimo exame por individuo.
-- Lista apenas descontrolados conforme classificacao SBD por idade.
+- Inclui todos (controlados e descontrolados). Filtro opcional por status.
 """
 
 from __future__ import annotations
@@ -19,18 +19,40 @@ from app.core.database import execute_query
 
 def buscar_individuos_diabetes_descontrolados(
     *,
+    co_cidadao: Optional[int] = None,
+    no_cidadao: Optional[str] = None,
     bairro: Optional[str] = None,
     sexo: Optional[str] = None,
     faixa_etaria: Optional[str] = None,
+    nu_area: Optional[str] = None,
+    nu_micro_area: Optional[str] = None,
+    controle_status: Optional[str] = None,
     data_ultimo_exame_inicio: Optional[date] = None,
     data_ultimo_exame_fim: Optional[date] = None,
     limite: int = 50,
     offset: int = 0,
 ) -> dict:
-    """Retorna total e pagina de individuos descontrolados por ultimo HbA1c."""
+    """Retorna total e pagina de individuos por ultimo HbA1c (controlados e/ou descontrolados)."""
     schema = settings.DB_SCHEMA
-    filtros = ["ult.controle_glicemico = 'Descontrolado'"]
+    filtros = ["1=1"]
     params: dict = {"limite": limite, "offset": offset}
+
+    if co_cidadao is not None:
+        filtros.append("ult.co_cidadao = :co_cidadao")
+        params["co_cidadao"] = co_cidadao
+
+    if no_cidadao:
+        filtros.append(
+            """
+            COALESCE(
+                NULLIF(TRIM(to_jsonb(tc)->>'no_cidadao'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'no_nome'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'no_nome_social'), ''),
+                NULLIF(TRIM(to_jsonb(tc)->>'ds_nome'), '')
+            ) ILIKE :no_cidadao
+            """
+        )
+        params["no_cidadao"] = f"%{no_cidadao.strip()}%"
 
     if bairro:
         filtros.append("UPPER(ult.no_bairro_filtro) = UPPER(:bairro)")
@@ -43,6 +65,18 @@ def buscar_individuos_diabetes_descontrolados(
     if faixa_etaria:
         filtros.append("ult.faixa_etaria = :faixa_etaria")
         params["faixa_etaria"] = faixa_etaria
+
+    if nu_area:
+        filtros.append("tc.nu_area = :nu_area")
+        params["nu_area"] = nu_area
+
+    if nu_micro_area:
+        filtros.append("tc.nu_micro_area = :nu_micro_area")
+        params["nu_micro_area"] = nu_micro_area
+
+    if controle_status in ("Controlado", "Descontrolado"):
+        filtros.append("ult.controle_glicemico = :controle_status")
+        params["controle_status"] = controle_status
 
     if data_ultimo_exame_inicio is not None:
         filtros.append("ult.dt_exame::date >= :data_ultimo_exame_inicio")
@@ -126,6 +160,15 @@ def buscar_individuos_diabetes_descontrolados(
     {where_sql}
     """
 
+    totais_status_sql = f"""
+    {cte_sql}
+    SELECT
+        COUNT(*) FILTER (WHERE ult.controle_glicemico = 'Controlado') AS total_controlados,
+        COUNT(*) FILTER (WHERE ult.controle_glicemico = 'Descontrolado') AS total_descontrolados
+    {from_sql}
+    {where_sql}
+    """
+
     dados_sql = f"""
     {cte_sql}
     SELECT
@@ -172,6 +215,7 @@ def buscar_individuos_diabetes_descontrolados(
     """
 
     total_rows = execute_query(total_sql, params)
+    totais_status_rows = execute_query(totais_status_sql, params)
     dados = execute_query(dados_sql, params)
 
     for row in dados:
@@ -208,7 +252,12 @@ def buscar_individuos_diabetes_descontrolados(
         row.pop("controle_glicemico", None)
 
     total = int(total_rows[0]["total"]) if total_rows else 0
+    ts = totais_status_rows[0] if totais_status_rows else {}
+    total_controlados = int(ts.get("total_controlados") or 0)
+    total_descontrolados = int(ts.get("total_descontrolados") or 0)
     return {
         "total": total,
+        "total_controlados": total_controlados,
+        "total_descontrolados": total_descontrolados,
         "dados": dados,
     }

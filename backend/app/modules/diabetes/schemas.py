@@ -40,6 +40,8 @@ class IndividuoDiabetesItem(BaseModel):
 
 class IndividuosDiabetesResponse(BaseModel):
     total: int
+    total_controlados: int = Field(description="Total com controle glicêmico Controlado (HbA1c na meta SBD).")
+    total_descontrolados: int = Field(description="Total com controle glicêmico Descontrolado.")
     limite: int
     offset: int
     filtros_aplicados: dict
