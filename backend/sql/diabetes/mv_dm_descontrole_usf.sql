@@ -1,6 +1,6 @@
 -- =====================================================================
 -- VIEW MATERIALIZADA: DESCONTROLE GLICÊMICO AGRUPADO POR USF (HbA1c)
--- Schema: dashboard.mv_dm_controle_usf
+-- Schema: dashboard.mv_dm_descontrole_usf
 -- Usado para: listar quantidade indivíduos em descontrole glicêmico por usf
 --
 -- Join path (corrigido em relação ao projeto anterior):
@@ -15,7 +15,7 @@
 --   → tb_ciap                            (classificação de problema de saúde)
 -- =====================================================================
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS dashboard.mv_dm_controle_usf AS
+CREATE MATERIALIZED VIEW IF NOT EXISTS dashboard.mv_dm_descontrole_usf AS
 
 SELECT COUNT(DISTINCT(IND.co_seq_cidadao)) AS Quantidade_Controle, USF.co_seq_dim_unidade_saude AS Codigo_USF, USF.no_unidade_saude AS Nome_USF
 FROM tb_cidadao IND
