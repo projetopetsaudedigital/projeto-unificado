@@ -31,12 +31,13 @@ JOIN tb_fat_cidadao_pec PEC ON PEC.co_cidadao = IND.co_seq_cidadao
 WHERE EHG.vl_hemoglobina_glicada IS NOT NULL
     AND EHG.vl_hemoglobina_glicada BETWEEN 3 AND 20   
     AND ER.dt_realizacao IS NOT NULL
-	AND ER.dt_realizacao >= ALL(SELECT ER1.dt_realizacao
-	                            FROM tb_exame_requisitado ER1
-								JOIN tb_prontuario P1 ON P1.co_seq_prontuario = ER1.co_prontuario
-								JOIN tb_cidadao IND1 ON IND1.co_seq_cidadao = P1.co_cidadao
-								JOIN tb_fat_cidadao_pec PEC1 ON PEC1.co_cidadao = IND1.co_seq_cidadao
-		                        WHERE ER1.dt_realizacao IS NOT NULL AND IND1.co_seq_cidadao = IND.co_seq_cidadao)
+	AND ER.dt_realizacao ER.dt_realizacao = (
+                                             SELECT MAX(ER1.dt_realizacao)
+                                             FROM tb_exame_requisitado ER1
+                                             JOIN tb_prontuario P1 
+                                             ON P1.co_seq_prontuario = ER1.co_prontuario
+                                             WHERE P1.co_cidadao = IND.co_seq_cidadao
+                                            )
 	AND (PEC.st_faleceu = 0 OR PEC.st_faleceu IS NULL)
     AND ER.dt_realizacao >= (CURRENT_DATE - INTERVAL '10 years')
 	ORDER BY IND.co_seq_cidadao ASC;
