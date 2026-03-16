@@ -12,6 +12,8 @@ from fastapi.testclient import TestClient
 from app.auth.jwt import get_usuario_obrigatorio
 from app.modules.pressao_arterial.routes import analytics as analytics_routes
 from app.modules.diabetes.routes import analytics as dm_analytics_routes
+from app.core.database import execute_query
+from app.core.config import settings
 
 
 @pytest.fixture
@@ -36,6 +38,8 @@ def client_autenticado_mock(monkeypatch):
         "buscar_individuos_hipertensos",
         lambda **kwargs: {
             "total": 2,
+            "total_controlados": 0,
+            "total_descontrolados": 2,
             "dados": [
                 {
                     "co_cidadao": 101,
@@ -157,6 +161,94 @@ def client_exames_dm_mock(monkeypatch):
         yield c
 
 
+@pytest.fixture
+def client_autenticado_distribuicao_microarea_mock(monkeypatch):
+    """Cliente autenticado com mock da distribuicao por microarea."""
+    from main import app
+
+    app.dependency_overrides[get_usuario_obrigatorio] = lambda: {
+        "co_seq_usuario": 1,
+        "tp_perfil": "leitor",
+    }
+
+    monkeypatch.setattr(
+        analytics_routes,
+        "buscar_distribuicao_por_microarea",
+        lambda **kwargs: [
+            {
+                "area": "1",
+                "microarea": "01",
+                "total_cadastros": 80,
+                "hipertensos": 22,
+                "prevalencia_pct": 27.5,
+            },
+            {
+                "area": "1",
+                "microarea": "02",
+                "total_cadastros": 40,
+                "hipertensos": 12,
+                "prevalencia_pct": 30.0,
+            },
+        ],
+    )
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client_autenticado_distribuicao_area_mock(monkeypatch):
+    """Cliente autenticado com mock da distribuicao por area."""
+    from main import app
+
+    app.dependency_overrides[get_usuario_obrigatorio] = lambda: {
+        "co_seq_usuario": 1,
+        "tp_perfil": "leitor",
+    }
+
+    monkeypatch.setattr(
+        analytics_routes,
+        "buscar_distribuicao_por_area",
+        lambda **kwargs: [
+            {
+                "area": "1",
+                "total_cadastros": 120,
+                "hipertensos": 34,
+                "prevalencia_pct": 28.3,
+            },
+            {
+                "area": "2",
+                "total_cadastros": 95,
+                "hipertensos": 21,
+                "prevalencia_pct": 22.1,
+            },
+        ],
+    )
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def client_autenticado_real():
+    """Cliente autenticado sem mocks para testes de integracao com banco."""
+    from main import app
+
+    app.dependency_overrides[get_usuario_obrigatorio] = lambda: {
+        "co_seq_usuario": 1,
+        "tp_perfil": "leitor",
+    }
+
+    with TestClient(app) as c:
+        yield c
+
+    app.dependency_overrides.clear()
+
+
 class TestHealthCheck:
     """Testes do endpoint de health check."""
 
@@ -167,7 +259,10 @@ class TestHealthCheck:
     def test_health_retorna_status(self, client):
         r = client.get("/api/v1/health")
         data = r.json()
-        assert "status" in data
+        assert "api" in data
+        assert data["api"] == "online"
+        assert "database" in data
+        assert "status" in data["database"]
 
 
 class TestAdminEndpoints:
@@ -273,6 +368,72 @@ class TestIndividuosHipertensao:
         assert data["dados"][0]["status_atual"] == "Descontrolado"
 
 
+class TestDistribuicaoArea:
+    """Testes do endpoint de distribuicao por area."""
+
+    def test_distribuicao_area_sem_token_retorna_401(self, client):
+        r = client.get("/api/v1/pressao-arterial/distribuicao-area")
+        assert r.status_code == 401
+
+    def test_distribuicao_area_periodo_invalido_retorna_422(self, client_autenticado_distribuicao_area_mock):
+        r = client_autenticado_distribuicao_area_mock.get(
+            "/api/v1/pressao-arterial/distribuicao-area",
+            params={"ano_inicio": 2026, "ano_fim": 2025},
+        )
+        assert r.status_code == 422
+
+    def test_distribuicao_area_retorna_estrutura_esperada(self, client_autenticado_distribuicao_area_mock):
+        r = client_autenticado_distribuicao_area_mock.get(
+            "/api/v1/pressao-arterial/distribuicao-area",
+            params={"ano_inicio": 2024, "ano_fim": 2026, "bairro": "patagonia"},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] == 2
+        assert data["filtros_aplicados"]["ano_inicio"] == 2024
+        assert data["filtros_aplicados"]["ano_fim"] == 2026
+        assert data["filtros_aplicados"]["bairro"] == "patagonia"
+        assert isinstance(data["dados"], list)
+        assert data["dados"][0]["area"] == "1"
+        assert data["dados"][0]["total_cadastros"] == 120
+        assert data["dados"][0]["hipertensos"] == 34
+        assert data["dados"][0]["prevalencia_pct"] == 28.3
+
+
+class TestDistribuicaoAreaIntegracao:
+    """Teste de integracao do endpoint de distribuicao por area com banco de desenvolvimento."""
+
+    def test_distribuicao_area_integracao_retorna_dados_consistentes(self, client_autenticado_real):
+        try:
+            execute_query(f"SELECT 1 FROM {settings.DB_SCHEMA}.mv_pa_cadastros LIMIT 1")
+        except Exception as exc:
+            pytest.skip(f"Banco de desenvolvimento indisponivel para integracao: {exc}")
+
+        r = client_autenticado_real.get(
+            "/api/v1/pressao-arterial/distribuicao-area",
+            params={"ano_inicio": 2020, "ano_fim": 2026},
+        )
+        assert r.status_code == 200
+
+        data = r.json()
+        assert "total" in data
+        assert "filtros_aplicados" in data
+        assert "dados" in data
+        assert isinstance(data["dados"], list)
+        assert data["total"] == len(data["dados"])
+
+        if data["dados"]:
+            item = data["dados"][0]
+            assert "area" in item
+            assert "total_cadastros" in item
+            assert "hipertensos" in item
+            assert "prevalencia_pct" in item
+            assert item["area"] is not None
+            assert item["area"] != ""
+            assert item["total_cadastros"] >= 0
+            assert item["hipertensos"] >= 0
+
+
 class TestIndividuosDiabetes:
     """Testes do endpoint de individuos com diabetes descontrolado."""
 
@@ -339,3 +500,71 @@ class TestExamesHemoglobinaGlicada:
         assert data["exames"][0]["co_cidadao"] == 101
         assert data["exames"][1]["co_cidadao"] == 102
         assert data["exames"][1]["vl_hemoglobina_glicada"] == 7.2
+
+
+class TestDistribuicaoMicroarea:
+    """Testes do endpoint de distribuicao por microarea."""
+
+    def test_distribuicao_microarea_sem_token_retorna_401(self, client):
+        r = client.get("/api/v1/pressao-arterial/distribuicao-microarea")
+        assert r.status_code == 401
+
+    def test_distribuicao_microarea_periodo_invalido_retorna_422(self, client_autenticado_distribuicao_microarea_mock):
+        r = client_autenticado_distribuicao_microarea_mock.get(
+            "/api/v1/pressao-arterial/distribuicao-microarea",
+            params={"ano_inicio": 2026, "ano_fim": 2025},
+        )
+        assert r.status_code == 422
+
+    def test_distribuicao_microarea_retorna_estrutura_esperada(self, client_autenticado_distribuicao_microarea_mock):
+        r = client_autenticado_distribuicao_microarea_mock.get(
+            "/api/v1/pressao-arterial/distribuicao-microarea",
+            params={"area": "1", "ano_inicio": 2024, "ano_fim": 2026},
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] == 2
+        assert data["filtros_aplicados"]["area"] == "1"
+        assert data["filtros_aplicados"]["ano_inicio"] == 2024
+        assert data["filtros_aplicados"]["ano_fim"] == 2026
+        assert isinstance(data["dados"], list)
+        assert data["dados"][0]["area"] == "1"
+        assert data["dados"][0]["microarea"] == "01"
+        assert data["dados"][0]["total_cadastros"] == 80
+        assert data["dados"][0]["hipertensos"] == 22
+        assert data["dados"][0]["prevalencia_pct"] == 27.5
+
+
+class TestDistribuicaoMicroareaIntegracao:
+    """Teste de integracao do endpoint de distribuicao por microarea com banco de desenvolvimento."""
+
+    def test_distribuicao_microarea_integracao_retorna_dados_consistentes(self, client_autenticado_real):
+        try:
+            execute_query(f"SELECT 1 FROM {settings.DB_SCHEMA}.mv_pa_cadastros LIMIT 1")
+        except Exception as exc:
+            pytest.skip(f"Banco de desenvolvimento indisponivel para integracao: {exc}")
+
+        r = client_autenticado_real.get(
+            "/api/v1/pressao-arterial/distribuicao-microarea",
+            params={"ano_inicio": 2020, "ano_fim": 2026},
+        )
+        assert r.status_code == 200
+
+        data = r.json()
+        assert "total" in data
+        assert "filtros_aplicados" in data
+        assert "dados" in data
+        assert isinstance(data["dados"], list)
+        assert data["total"] == len(data["dados"])
+
+        if data["dados"]:
+            item = data["dados"][0]
+            assert "area" in item
+            assert "microarea" in item
+            assert "total_cadastros" in item
+            assert "hipertensos" in item
+            assert "prevalencia_pct" in item
+            assert item["area"] is not None
+            assert item["microarea"] is not None
+            assert item["total_cadastros"] >= 0
+            assert item["hipertensos"] >= 0
