@@ -157,6 +157,60 @@ class PrevalenciaResponse(BaseModel):
     )
 
 
+class DistribuicaoAreaItem(BaseModel):
+    area: str = Field(
+        description="Area de adscricao (nu_area) do cadastro individual.",
+        examples=["2"],
+    )
+    total_cadastros: int = Field(
+        description="Total de cidadaos cadastrados na area.",
+        examples=[1320],
+    )
+    hipertensos: int = Field(
+        description="Total de cidadaos com st_hipertensao_arterial = 1 na area.",
+        examples=[415],
+    )
+    prevalencia_pct: Optional[float] = Field(
+        description="Prevalencia de hipertensao na area em percentual.",
+        examples=[31.4],
+    )
+
+
+class DistribuicaoAreaResponse(BaseModel):
+    total: int = Field(description="Numero de areas retornadas.")
+    filtros_aplicados: dict = Field(description="Filtros aplicados na consulta.")
+    dados: list[DistribuicaoAreaItem]
+
+
+class DistribuicaoMicroareaItem(BaseModel):
+    area: str = Field(
+        description="Area de adscricao (nu_area) do cadastro individual.",
+        examples=["2"],
+    )
+    microarea: str = Field(
+        description="Microarea de adscricao (nu_micro_area) do cadastro individual.",
+        examples=["01"],
+    )
+    total_cadastros: int = Field(
+        description="Total de cidadaos cadastrados na microarea.",
+        examples=[320],
+    )
+    hipertensos: int = Field(
+        description="Total de cidadaos com st_hipertensao_arterial = 1 na microarea.",
+        examples=[98],
+    )
+    prevalencia_pct: Optional[float] = Field(
+        description="Prevalencia de hipertensao na microarea em percentual.",
+        examples=[30.6],
+    )
+
+
+class DistribuicaoMicroareaResponse(BaseModel):
+    total: int = Field(description="Numero de microareas retornadas.")
+    filtros_aplicados: dict = Field(description="Filtros aplicados na consulta.")
+    dados: list[DistribuicaoMicroareaItem]
+
+
 # ─── Fatores de risco ────────────────────────────────────────────────────────
 
 class ComorbidadeComparativo(BaseModel):
