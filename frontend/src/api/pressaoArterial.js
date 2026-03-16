@@ -27,6 +27,7 @@ export const api = {
   mapa: (p = {})                    => get('/mapa', p),
   mapaLoteamentos: (p = {})         => get('/mapa-loteamentos', p),
   individuos: (p = {}) => get('/individuos', p),
+  gestorControle: (p = {})          => get('/gestor/controle', p),
   bairros: ()                       => get('/bairros'),
   coberturaBairros: ()              => get('/cobertura-bairros'),
   ubs: (p = {})                     => get('/ubs', p),

@@ -2,8 +2,8 @@
 Router de analytics — Pressão Arterial.
 
 Endpoints:
-  GET /tendencia               → evolução mensal de medições e classificação PA
-  GET /prevalencia             → hipertensos por bairro VDC, sexo, faixa etária
+  GET /tendencia             → evolução mensal de medições e classificação PA
+  GET /prevalencia           → hipertensos por bairro VDC, sexo, faixa etária
   GET /distribuicao-area       → distribuição de cadastros e hipertensão por nu_area
   GET /distribuicao-microarea  → distribuição de cadastros e hipertensão por nu_micro_area
   GET /fatores-risco           → comparativo comorbidades hipertensos vs não
@@ -38,6 +38,8 @@ from app.modules.pressao_arterial.analytics.ubs import buscar_dados_ubs
 from app.modules.pressao_arterial.analytics.individuos import buscar_individuos_hipertensos
 from app.modules.pressao_arterial.analytics.area import buscar_distribuicao_por_area
 from app.modules.pressao_arterial.analytics.microarea import buscar_distribuicao_por_microarea
+from app.modules.pressao_arterial.analytics.gestor import buscar_painel_gestor_controle_pressorico
+
 from app.auth.jwt import get_usuario_obrigatorio
 from app.modules.pressao_arterial.schemas import (
     KPIsResponse,
@@ -53,6 +55,15 @@ from app.modules.pressao_arterial.schemas import (
 )
 
 router = APIRouter()
+
+
+@router.get("/gestor/controle", summary="Painel do gestor: agregações de controle pressórico")
+def painel_gestor_controle(
+    co_unidade_saude: Optional[int] = Query(default=None, ge=1, description="Filtrar por UBS/USF"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
+):
+    _ = usuario
+    return buscar_painel_gestor_controle_pressorico(co_unidade_saude=co_unidade_saude)
 
 
 @router.get(
@@ -327,8 +338,6 @@ def exportar_bairros(
     Retorna JSON completo com todos os bairros e seus indicadores de saúde.
     Inclui: total de cadastros, hipertensos, prevalência, diabetes, AVC,
     infarto, fumantes, idosos — por bairro canônico normalizado.
-
-    Salve a resposta como arquivo .json para análise offline ou uso no frontend.
     """
     from app.core.database import execute_query
     from app.core.config import settings
@@ -336,8 +345,8 @@ def exportar_bairros(
 
     sql = f"""
     SELECT
-        g.no_bairro                                              AS bairro,
-        COUNT(*)                                                 AS total_cadastros,
+        g.no_bairro                                             AS bairro,
+        COUNT(*)                                                AS total_cadastros,
         COUNT(*) FILTER (WHERE c.st_hipertensao_arterial = 1)   AS hipertensos,
         ROUND(
             COUNT(*) FILTER (WHERE c.st_hipertensao_arterial = 1)::NUMERIC
@@ -367,7 +376,6 @@ def exportar_bairros(
 
     rows = execute_query(sql, {"minimo": minimo_cadastros})
 
-    # Converte Decimal para float
     bairros_data = [
         {k: float(v) if hasattr(v, "__float__") else v for k, v in r.items()}
         for r in rows
