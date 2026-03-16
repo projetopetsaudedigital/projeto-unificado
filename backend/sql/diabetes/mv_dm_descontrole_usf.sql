@@ -1,7 +1,7 @@
 -- =====================================================================
--- VIEW MATERIALIZADA: CONTROLE GLICÊMICO AGRUPADO POR USF (HbA1c)
+-- VIEW MATERIALIZADA: DESCONTROLE GLICÊMICO AGRUPADO POR USF (HbA1c)
 -- Schema: dashboard.mv_dm_controle_usf
--- Usado para: listar quantidade indivíduos em controle glicêmico por usf
+-- Usado para: listar quantidade indivíduos em descontrole glicêmico por usf
 --
 -- Join path (corrigido em relação ao projeto anterior):
 --   tb_exame_hemoglobina_glicada
@@ -30,13 +30,13 @@ JOIN tb_ciap CIAP ON CIAP.co_seq_ciap = PB.co_ciap
 WHERE EHG.vl_hemoglobina_glicada IS NOT NULL
     AND EHG.vl_hemoglobina_glicada BETWEEN 3 AND 20   
 	AND ((EXTRACT(YEAR FROM AGE(ER.dt_realizacao, IND.dt_nascimento)) < 65
-	     AND EHG.vl_hemoglobina_glicada <  7.0)
+	     AND EHG.vl_hemoglobina_glicada >=  7.0)
 		 OR 
 		 (EXTRACT(YEAR FROM AGE(ER.dt_realizacao, IND.dt_nascimento)) BETWEEN 65 AND 79
-	     AND EHG.vl_hemoglobina_glicada <  7.5)
+	     AND EHG.vl_hemoglobina_glicada >=  7.5)
 		 OR
 		 (EXTRACT(YEAR FROM AGE(ER.dt_realizacao, IND.dt_nascimento)) >= 80
-	     AND EHG.vl_hemoglobina_glicada <  8.0))
+	     AND EHG.vl_hemoglobina_glicada >= 8.0))
     AND ER.dt_realizacao IS NOT NULL
 	AND ER.dt_realizacao = (
                             SELECT MAX(ER1.dt_realizacao)
