@@ -140,14 +140,21 @@ function SidebarContent({ onClose }) {
         >
         </NavLink>
 
-        {/* Usuário + Logout */}
+        {/* Usuário + USF (quando equipe) + Logout */}
         <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-400">
-          <span className="flex-1 truncate" title={usuario?.email}>
-            {usuario?.nome || usuario?.email}
-          </span>
+          <div className="flex-1 min-w-0">
+            <span className="block truncate" title={usuario?.email}>
+              {usuario?.nome || usuario?.email}
+            </span>
+            {usuario?.co_unidade_saude != null && (
+              <span className="block truncate text-slate-400 mt-0.5" title="Unidade de saúde">
+                {usuario?.no_unidade_saude ?? `USF ${usuario.co_unidade_saude}`}
+              </span>
+            )}
+          </div>
           <button
             onClick={logout}
-            className="p-1 text-slate-400 hover:text-red-500 transition-colors"
+            className="p-1 text-slate-400 hover:text-red-500 transition-colors shrink-0"
             title="Sair"
           >
             <LogOut size={14} />
