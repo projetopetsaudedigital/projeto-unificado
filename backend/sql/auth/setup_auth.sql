@@ -8,6 +8,7 @@
 
 CREATE SCHEMA IF NOT EXISTS auth;
 
+-- Tabela de usuários
 CREATE TABLE IF NOT EXISTS auth.tb_usuarios (
     co_seq_usuario  SERIAL PRIMARY KEY,
     ds_nome         VARCHAR(150) NOT NULL,
@@ -31,6 +32,7 @@ CREATE INDEX IF NOT EXISTS idx_auth_usuarios_ativo
 CREATE INDEX IF NOT EXISTS idx_auth_usuarios_unidade
     ON auth.tb_usuarios (co_unidade_saude);
 
+-- Inserir um admin padrão (senha: admin123 — TROCAR EM PRODUÇÃO!)
 -- Hash bcrypt de 'admin123'
 INSERT INTO auth.tb_usuarios (ds_nome, ds_email, ds_senha_hash, tp_perfil, co_unidade_saude)
 VALUES (
