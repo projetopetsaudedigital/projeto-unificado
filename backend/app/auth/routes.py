@@ -23,6 +23,20 @@ from app.auth.jwt import (
 
 logger = setup_logging("auth.routes")
 
+
+def _nome_unidade_saude(co_unidade_saude: int | None) -> str | None:
+    """Retorna no_unidade_saude a partir de tb_unidade_saude, ou None se não encontrar."""
+    if co_unidade_saude is None:
+        return None
+    try:
+        rows = execute_query(
+            "SELECT no_unidade_saude FROM tb_unidade_saude WHERE co_seq_unidade_saude = :id",
+            {"id": co_unidade_saude},
+        )
+        return rows[0]["no_unidade_saude"] if rows else None
+    except Exception:
+        return None
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -38,6 +52,7 @@ class UsuarioCreate(BaseModel):
     email: str
     senha: str
     perfil: str = "leitor"
+    co_unidade_saude: int | None = None
 
 
 class UsuarioResponse(BaseModel):
@@ -46,6 +61,7 @@ class UsuarioResponse(BaseModel):
     ds_email: str
     tp_perfil: str
     st_ativo: bool
+    co_unidade_saude: int | None = None
 
 
 # ── Login ─────────────────────────────────────────────────────────────────
@@ -69,6 +85,9 @@ def login(body: LoginRequest):
 
     token = criar_token({"sub": str(usuario["co_seq_usuario"]), "perfil": usuario["tp_perfil"]})
 
+    co_usf = usuario.get("co_unidade_saude")
+    no_usf = _nome_unidade_saude(co_usf) if co_usf is not None else None
+
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -77,6 +96,8 @@ def login(body: LoginRequest):
             "nome": usuario["ds_nome"],
             "email": usuario["ds_email"],
             "perfil": usuario["tp_perfil"],
+            "co_unidade_saude": co_usf,
+            "no_unidade_saude": no_usf,
         },
     }
 
@@ -86,11 +107,15 @@ def login(body: LoginRequest):
 @router.get("/me", summary="Dados do usuário logado")
 def me(usuario: dict = Depends(get_usuario_obrigatorio)):
     """Retorna os dados do usuário autenticado."""
+    co_usf = usuario.get("co_unidade_saude")
+    no_usf = _nome_unidade_saude(co_usf) if co_usf is not None else None
     return {
         "id": usuario["co_seq_usuario"],
         "nome": usuario["ds_nome"],
         "email": usuario["ds_email"],
         "perfil": usuario["tp_perfil"],
+        "co_unidade_saude": co_usf,
+        "no_unidade_saude": no_usf,
     }
 
 
@@ -118,9 +143,15 @@ def criar_usuario(body: UsuarioCreate, usuario: dict = Depends(exigir_perfil("ad
 
     senha_hash = criar_hash(body.senha)
     execute_query(
-        "INSERT INTO auth.tb_usuarios (ds_nome, ds_email, ds_senha_hash, tp_perfil) "
-        "VALUES (:nome, :email, :senha_hash, :perfil)",
-        {"nome": body.nome, "email": body.email, "senha_hash": senha_hash, "perfil": body.perfil},
+        "INSERT INTO auth.tb_usuarios (ds_nome, ds_email, ds_senha_hash, tp_perfil, co_unidade_saude) "
+        "VALUES (:nome, :email, :senha_hash, :perfil, :co_unidade_saude)",
+        {
+            "nome": body.nome,
+            "email": body.email,
+            "senha_hash": senha_hash,
+            "perfil": body.perfil,
+            "co_unidade_saude": body.co_unidade_saude,
+        },
     )
 
     logger.info(f"Usuário criado: {body.email} (perfil: {body.perfil})")
