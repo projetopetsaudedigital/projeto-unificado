@@ -62,8 +62,13 @@ def painel_gestor_controle(
     co_unidade_saude: Optional[int] = Query(default=None, ge=1, description="Filtrar por UBS/USF"),
     usuario: dict = Depends(get_usuario_obrigatorio),
 ):
-    _ = usuario
-    return buscar_painel_gestor_controle_pressorico(co_unidade_saude=co_unidade_saude)
+    # Usuário de equipe: sempre restringe à sua unidade, ignorando o parâmetro recebido.
+    if usuario.get("co_unidade_saude") is not None:
+        co_unidade_saude_efetiva = usuario["co_unidade_saude"]
+    else:
+        co_unidade_saude_efetiva = co_unidade_saude
+
+    return buscar_painel_gestor_controle_pressorico(co_unidade_saude=co_unidade_saude_efetiva)
 
 
 @router.get(
@@ -92,7 +97,11 @@ def listar_individuos_hipertensos(
     usuario: dict = Depends(get_usuario_obrigatorio),
 ):
     """Lista individuos hipertensos usando filtros clinico-demograficos."""
-    _ = usuario
+    # Usuário de equipe: sempre restringe à sua unidade, ignorando o parâmetro recebido.
+    if usuario.get("co_unidade_saude") is not None:
+        co_unidade_saude_efetiva = usuario["co_unidade_saude"]
+    else:
+        co_unidade_saude_efetiva = co_unidade_saude
 
     if (
         data_ultima_medicao_inicio is not None
@@ -112,7 +121,7 @@ def listar_individuos_hipertensos(
         faixa_etaria=faixa_etaria,
         nu_area=nu_area,
         nu_micro_area=nu_micro_area,
-        co_unidade_saude=co_unidade_saude,
+        co_unidade_saude=co_unidade_saude_efetiva,
         st_diabetes=st_diabetes,
         data_ultima_medicao_inicio=data_ultima_medicao_inicio,
         data_ultima_medicao_fim=data_ultima_medicao_fim,
@@ -134,7 +143,7 @@ def listar_individuos_hipertensos(
             "faixa_etaria": faixa_etaria,
             "nu_area": nu_area,
             "nu_micro_area": nu_micro_area,
-            "co_unidade_saude": co_unidade_saude,
+            "co_unidade_saude": co_unidade_saude_efetiva,
             "st_diabetes": st_diabetes,
             "data_ultima_medicao_inicio": data_ultima_medicao_inicio,
             "data_ultima_medicao_fim": data_ultima_medicao_fim,
@@ -159,15 +168,22 @@ def tendencia(
     ano_fim: Optional[int] = Query(default=None, description="Ano final do período"),
     co_unidade_saude: Optional[int] = Query(default=None, description="Código da UBS"),
     bairro: Optional[str] = Query(default=None, description="Nome normalizado do bairro"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
 ):
     """
     Evolução mensal de medições de pressão arterial.
     Retorna contagem por classificação (normal, elevada, HAS I/II/III) e médias de PAS/PAD.
     """
+    # Usuário de equipe: sempre restringe à sua unidade, ignorando o parâmetro recebido.
+    if usuario.get("co_unidade_saude") is not None:
+        co_unidade_saude_efetiva = usuario["co_unidade_saude"]
+    else:
+        co_unidade_saude_efetiva = co_unidade_saude
+
     dados = buscar_tendencia(
         ano_inicio=ano_inicio,
         ano_fim=ano_fim,
-        co_unidade_saude=co_unidade_saude,
+        co_unidade_saude=co_unidade_saude_efetiva,
         bairro=bairro,
     )
     return {
@@ -175,7 +191,7 @@ def tendencia(
         "filtros_aplicados": {
             "ano_inicio": ano_inicio,
             "ano_fim": ano_fim,
-            "co_unidade_saude": co_unidade_saude,
+            "co_unidade_saude": co_unidade_saude_efetiva,
             "bairro": bairro,
         },
         "dados": dados,
