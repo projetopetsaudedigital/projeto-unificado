@@ -179,13 +179,13 @@ ORDER BY
     fci.dt_nascimento DESC;
 
 CREATE UNIQUE INDEX idx_mv_cidadao_pk
-ON dashboard.mv_cidadao_cadastro_completo (co_seq_cidadao);
+ON dashboard.mv_cidadao_info (co_seq_cidadao);
 
 CREATE INDEX idx_mv_cidadao_microarea
-ON dashboard.mv_cidadao_cadastro_completo (nu_micro_area);
+ON dashboard.mv_cidadao_info (nu_micro_area);
 
 CREATE INDEX idx_mv_cidadao_unidade
-ON dashboard.mv_cidadao_cadastro_completo (co_dim_unidade_saude);
+ON dashboard.mv_cidadao_info (co_dim_unidade_saude);
 
-COMMENT ON MATERIALIZED VIEW dashboard.mv_cidadao_cadastro_completo IS
+COMMENT ON MATERIALIZED VIEW dashboard.mv_cidadao_info IS
 'Cidadãos consolidados com dados demográficos, condições clínicas, território ACS e CID10 .';

@@ -46,13 +46,18 @@ _SQL_DIR = Path(__file__).parent.parent / "sql"
 _SQL_SETUP_SINGLE      = (_SQL_DIR / "setup_single_db.sql").read_text(encoding="utf-8")
 _SQL_SETUP_AUTH        = (_SQL_DIR / "auth" / "setup_auth.sql").read_text(encoding="utf-8")
 _SQL_SETUP_GEO         = (_SQL_DIR / "geo" / "setup_geocodificacao.sql").read_text(encoding="utf-8")
-_SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sql").read_text(encoding="utf-8")
-_SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_HEMOGLOBINA = (_SQL_DIR / "diabetes" / "mv_dm_hemoglobina.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_CIDADAOS_USF = (_SQL_DIR / "diabetes" / "mv_dm_cidadaos_usf.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_COMORBIDADES = (_SQL_DIR / "diabetes" / "mv_dm_comorbidades.sql").read_text(encoding="utf-8")
+_SQL_MV_DM_CONTROLE_USF = (_SQL_DIR / "diabetes" / "mv_dm_controle_usf.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_DESCONTROLE_USF = (_SQL_DIR / "diabetes" / "mv_dm_descontrole_usf.sql").read_text(encoding="utf-8")
-
+_SQL_MV_MEDIANA_EXAMES_HBA1C = (_SQL_DIR / "diabetes" / "mv_mediana_exames_hbA1c.sql").read_text(encoding="utf-8")
+_SQL_MV_ATENDIMENTO_COMPLETO = (_SQL_DIR / "atendimento" / "mv_atendimento_completo.sql").read_text(encoding="utf-8")
+_SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sql").read_text(encoding="utf-8")
+_SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
+_SQL_VW_ATENDIMENTO_ULTIMO_ANO = (_SQL_DIR / "atendimento" / "vw_atendimento_ultimo_ano.sql").read_text(encoding="utf-8")
+_SQL_VW_CLASSIFICACAO_PRESSAO = (_SQL_DIR / "atendimento" / "vw_classificação_pressao.sql").read_text(encoding="utf-8")
+_SQL_MV_CIDADAO_INFO = (_SQL_DIR / "cidadao" / "mv_cidadao_info.sql").read_text(encoding="utf-8")
 
 _SQL_BAIRROS_MAPEAMENTO = """
 CREATE TABLE IF NOT EXISTS dashboard.tb_bairros_mapeamento (
@@ -246,6 +251,17 @@ def step_views_diabetes_comorbidades() -> None:
     except Exception as e:
         print(f"  [ERRO] mv_dm_comorbidades: {e}")
 
+def step_views_diabetes_controle_usf() -> None:
+    """Cria mv_dm_controle_usf."""
+    print("\n[VIEWS-DIABETES] Criando view materializada de Controle por USF...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_DM_CONTROLE_USF)
+        print("  [OK] dashboard.mv_dm_controle_usf")
+    except Exception as e:
+        print(f"  [ERRO] mv_dm_controle_usf: {e}")
+
 def step_views_diabetes_descontrole_usf() -> None:
     """Cria mv_dm_descontrole_usf."""
     print("\n[VIEWS-DIABETES] Criando view materializada de Descontrole por USF...")
@@ -256,6 +272,27 @@ def step_views_diabetes_descontrole_usf() -> None:
         print("  [OK] dashboard.mv_dm_descontrole_usf")
     except Exception as e:
         print(f"  [ERRO] mv_dm_descontrole_usf: {e}")
+
+def step_views_atendimento_completo() -> None:
+    """Cria mv_atendimento_completo."""
+    print("\n[VIEWS-DIABETES] Criando view materializada de Atendimento_Completo...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_ATENDIMENTO_COMPLETO)
+        print("  [OK] dashboard.mv_atendimento_completo")
+    except Exception as e:
+        print(f"  [ERRO] mv_atendimento_completo: {e}")
+def step_views_mediana_exames_hbA1c() -> None:
+    """Cria mv_mediana_exames_hbA1c."""
+    print("\n[VIEWS-DIABETES] Criando view materializada das Medianas de exames hbA1c...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_MEDIANA_EXAMES_HBA1C)
+        print("  [OK] dashboard.mv_mediana_exames_hbA1c")
+    except Exception as e:
+        print(f"  [ERRO] mv_mediana_exames_hbA1c: {e}")
 
 def step_views_regulares() -> None:
     """Cria vw_bairro_canonico e vw_loteamento_canonico."""
@@ -270,7 +307,25 @@ def step_views_regulares() -> None:
         print("  [OK] dashboard.vw_loteamento_canonico")
     except Exception as e:
         print(f"  [ERRO] vw_loteamento_canonico: {e}")
+    try:
+        _executar_sql_ddl(_SQL_VW_ATENDIMENTO_ULTIMO_ANO)
+        print("  [OK] dashboard.vw_atendimento_ultimo_ano")
+    except Exception as e:
+        print(f"  [ERRO] vw_atendimento_ultimo_ano: {e}")
+    try:
+        _executar_sql_ddl(_SQL_VW_CLASSIFICACAO_PRESSAO)
+        print("  [OK] dashboard.vw_classificacao_pressao")
+    except Exception as e:
+        print(f"  [ERRO] vw_classificacao_pressao: {e}")
 
+def step_views_cidadao() -> None:
+    """Cria mv_cidadao_info."""
+    print("\n[VIEWS-REGULARES] Criando view materializada de cadastro consolidado de cidadão...")
+    try:
+        _executar_sql_ddl(_SQL_MV_CIDADAO_INFO)
+        print("  [OK] dashboard.mv_cidadao_info")
+    except Exception as e:
+        print(f"  [ERRO] mv_cidadao_info: {e}")
 
 def step_normalizacao(limite_ceps: int | None, threshold: float, delay: float) -> None:
     """Executa normalização de bairros via ViaCEP + fuzzy matching."""
@@ -324,7 +379,7 @@ def step_refresh() -> None:
         "mv_dm_cidadaos_usf",
         "mv_dm_comorbidades",
         "mv_dm_descontrole_usf",
-
+        "mv_cidadao_info",
     ]
 
     print("\n[REFRESH] Atualizando views materializadas...")
@@ -414,10 +469,28 @@ Exemplos:
         help="Cria mv_dm_comorbidades (Diabetes_Comorbidades)",
     )
     parser.add_argument(
+        "--views-controle_usf",
+        action="store_true",
+        dest="views_controle_usf",
+        help="Cria mv_dm_controle_usf (Diabetes_Controle_USF)",
+    )
+    parser.add_argument(
         "--views-descontrole_usf",
         action="store_true",
         dest="views_descontrole_usf",
         help="Cria mv_dm_descontrole_usf (Diabetes_Descontrole_USF)",
+    )
+    parser.add_argument(
+        "--views-cidadao",
+        action="store_true",
+        dest="views_cidadao",
+        help="Cria mv_cidadao_info (Cadastro consolidado de cidadão)",
+    )
+    parser.add_argument(
+        "--views-mediana-exames-hbA1c",
+        action="store_true",
+        dest="views_mediana_exames_hbA1c",
+        help="Cria mv_mediana_exames_hbA1c (Diabetes_Mediana_Exames_hbA1c)",
     )
     parser.add_argument(
         "--views-regulares",
@@ -435,7 +508,12 @@ Exemplos:
         action="store_true",
         help="Executa REFRESH CONCURRENTLY em todas as views materializadas existentes",
     )
-
+    parser.add_argument(
+        "--views-atendimento-completo",
+        action="store_true",
+        dest="views_atendimento_completo",
+        help="Cria vw_atendimento_completo (Atendimento_Completo)",
+    )
     # Flags auxiliares para --normalizacao
     parser.add_argument(
         "--limite-ceps",
@@ -501,7 +579,11 @@ def main() -> None:
         step_views_regulares()
         step_views_diabetes_comorbidades()
         step_views_diabetes_descontrole_usf()
+        step_views_diabetes_controle_usf()
         step_sincronizacao_geo()
+        step_views_atendimento_completo()
+        step_views_mediana_exames_hbA1c()
+        step_views_cidadao()
     else:
         if args.schema:
             step_schema()
@@ -519,6 +601,14 @@ def main() -> None:
             step_views_diabetes_comorbidades()
         if args.views_descontrole_usf:
             step_views_diabetes_descontrole_usf()
+        if args.views_cidadao:
+            step_views_cidadao()
+        if args.views_atendimento_completo:
+            step_views_atendimento_completo()
+        if args.views_controle_usf:
+            step_views_diabetes_controle_usf()
+        if args.views_mediana_exames_hbA1c:
+            step_views_mediana_exames_hbA1c()    
         if args.normalizacao:
             step_normalizacao(
                 limite_ceps=args.limite_ceps,
