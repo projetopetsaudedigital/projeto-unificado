@@ -5,7 +5,7 @@ import { kml } from '@tmcw/togeojson'
 import 'leaflet/dist/leaflet.css'
 import { api } from '../../api/pressaoArterial'
 import { useAuth } from '../../contexts/AuthContext.jsx'
-import { Activity, Users, CheckCircle, XCircle } from 'lucide-react'
+import { Activity, Users, CheckCircle, XCircle, MapPin } from 'lucide-react'
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from 'recharts'
@@ -305,11 +305,25 @@ export default function PainelHipertensao() {
 
   if (isError) return <div className="p-6 text-red-600 bg-red-50 rounded-lg m-6">Erro ao carregar dados da API.</div>
 
+  const nomeUSF =
+    usuario?.no_unidade_saude ??
+    (usuario?.co_unidade_saude != null ? `USF ${usuario.co_unidade_saude}` : null) ??
+    'USF Não Identificada'
+  const isEquipe = usuario?.co_unidade_saude != null
+
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen font-sans text-slate-900">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-800">Painel - Pressão Arterial</h1>
-        <p className="text-sm text-slate-500 mt-1">Controle pressórico · Critérios DBHA 2025</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-800">Painel - Pressão Arterial</h1>
+          <p className="text-sm text-slate-500 mt-1">Controle pressórico · Critérios DBHA 2025</p>
+        </div>
+        {isEquipe && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg self-start sm:self-center">
+            <MapPin size={18} className="text-blue-600" />
+            <span className="text-sm font-semibold text-blue-700">{nomeUSF}</span>
+          </div>
+        )}
       </div>
 
 

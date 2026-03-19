@@ -5,7 +5,10 @@ async function get(path, params = {}) {
   Object.entries(params).forEach(([k, v]) => {
     if (v !== null && v !== undefined && v !== '') url.searchParams.set(k, v)
   })
-  const res = await fetch(url.toString())
+  const token = localStorage.getItem('token')
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: token ? `Bearer ${token}` : undefined },
+  })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

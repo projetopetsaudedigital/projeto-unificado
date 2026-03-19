@@ -34,7 +34,10 @@ export default function Geral() {
   }
 
   const perfil = usuario?.nome
-  const nomeUSF = usuario?.usf || "USF Não Identificada"
+  const nomeUSF =
+    usuario?.no_unidade_saude ??
+    (usuario?.co_unidade_saude != null ? `USF ${usuario.co_unidade_saude}` : null) ??
+    'USF Não Identificada'
 
   const isGestor = perfil === 'Gestor'
   const isEquipe = perfil === 'Equipe'
