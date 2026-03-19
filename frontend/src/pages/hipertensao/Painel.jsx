@@ -4,6 +4,11 @@ import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet'
 import { kml } from '@tmcw/togeojson'
 import 'leaflet/dist/leaflet.css'
 import { api } from '../../api/pressaoArterial'
+import { useAuth } from '../../contexts/AuthContext.jsx'
+import { Activity, Users, CheckCircle, XCircle, MapPin } from 'lucide-react'
+import {
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+} from 'recharts'
 
 const VDC_CENTER = [-14.866, -40.844]
 const VDC_ZOOM = 11
@@ -24,6 +29,27 @@ function definirFaixaEtaria(idade) {
   if (idade < 18) return 'Criança/Adol.'
   if (idade <= 59) return 'Adulto'
   return 'Idoso'
+}
+
+function KpiCard({ label, value, sub, icon: Icon, color = 'blue' }) {
+  const colors = {
+    emerald: 'text-emerald-600 bg-emerald-50',
+    blue:    'text-blue-600 bg-blue-50',
+    amber:   'text-amber-600 bg-amber-50',
+    red:     'text-red-600 bg-red-50',
+  }
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3">
+      <div className={`p-2 rounded-lg ${colors[color]}`}>
+        <Icon size={18} />
+      </div>
+      <div>
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-xl font-bold text-slate-800">{value ?? '—'}</p>
+        {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+      </div>
+    </div>
+  )
 }
 
 // --- Helpers do Mapa ---
@@ -63,6 +89,16 @@ function descobrirNome(properties, fallbackId) {
 
 export default function PainelHipertensao() {
   // --- Estados do Painel ---
+  const { usuario } = useAuth()
+  const isGestor = usuario?.nome?.toLowerCase() === 'gestor' || usuario?.perfil?.toLowerCase() === 'admin'
+
+  // Se for equipe/leitor: por regra, filtra pela USF do usuário (se existir).
+  // Se for gestor: pode filtrar por USF no dropdown.
+  const [filtroUbsGestor, setFiltroUbsGestor] = useState('')
+  const coUnidadeSaudeAtiva = isGestor
+    ? (filtroUbsGestor ? Number(filtroUbsGestor) : undefined)
+    : (usuario?.co_unidade_saude ? Number(usuario.co_unidade_saude) : undefined)
+
   const [buscaPaciente, setBuscaPaciente] = useState('')
   const [filtroStatus, setFiltroStatus] = useState('')
   const [filtroFaixa, setFiltroFaixa] = useState('')
@@ -75,12 +111,13 @@ export default function PainelHipertensao() {
   const [isMapLoading, setIsMapLoading] = useState(true)
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['individuos', buscaPaciente, filtroFaixa, filtroArea, filtroMicroarea, offset],
+    queryKey: ['individuos', buscaPaciente, filtroFaixa, filtroArea, filtroMicroarea, coUnidadeSaudeAtiva, offset],
     queryFn: () => {
       const params = {
         faixa_etaria: filtroFaixa || undefined,
         nu_area: filtroArea || undefined,
         nu_micro_area: filtroMicroarea || undefined,
+        co_unidade_saude: coUnidadeSaudeAtiva || undefined,
         limite,
         offset,
       }
@@ -111,6 +148,128 @@ export default function PainelHipertensao() {
   // Totais de Controlado/Descontrolado vêm da API (todos os registros), não só da página atual
   const totalControlados = data?.total_controlados ?? 0
   const totalDescontrolados = data?.total_descontrolados ?? 0
+
+  // Dropdown de USF/UBS (apenas para gestor)
+  const { data: ubsData } = useQuery({
+    queryKey: ['pa-ubs-lista'],
+    queryFn: () => api.ubs({}),
+    enabled: isGestor,
+    staleTime: 60_000,
+  })
+  const listaUbs = ubsData?.dados ?? []
+
+  // Painel do gestor (agregações para gráficos)
+  const { data: gestorData, isLoading: gestorLoading } = useQuery({
+    queryKey: ['pa-gestor-controle', coUnidadeSaudeAtiva],
+    queryFn: () => api.gestorControle({ co_unidade_saude: coUnidadeSaudeAtiva }),
+    enabled: isGestor,
+    staleTime: 30_000,
+  })
+
+  const [areaSelecionada, setAreaSelecionada] = useState('')
+
+  const areasDisponiveis = useMemo(() => {
+    const rows = gestorData?.por_area_microarea ?? []
+    const set = new Set(rows.map(r => r.nu_area).filter(v => v !== null && v !== undefined && `${v}` !== ''))
+    return Array.from(set).sort((a, b) => `${a}`.localeCompare(`${b}`))
+  }, [gestorData])
+
+  const dadosPorUSF = useMemo(() => {
+    const rows = gestorData?.por_usf ?? []
+    return rows.map(r => ({
+      usf: (r.no_unidade_saude ?? `USF ${r.co_unidade_saude ?? '—'}`).toString().replace(/^(UBS|PSF|ESF|CS)\s*/i, ''),
+      controlados: Number(r.controlados ?? 0),
+      descontrolados: Number(r.descontrolados ?? 0),
+      total: Number(r.total ?? 0),
+    }))
+  }, [gestorData])
+
+  const dadosMedianaMedicoesUSF = useMemo(() => {
+    const rows = gestorData?.mediana_medicoes_usf ?? []
+    return rows.map(r => ({
+      usf: (r.no_unidade_saude ?? `USF ${r.co_unidade_saude ?? '—'}`).toString().replace(/^(UBS|PSF|ESF|CS)\s*/i, ''),
+      total_medicoes: Number(r.total_medicoes ?? 0),
+    }))
+  }, [gestorData])
+
+  const medianaTotalMedicoesUltimoAno = useMemo(() => {
+    if (!dadosMedianaMedicoesUSF.length) return null
+    const valores = dadosMedianaMedicoesUSF
+      .map(r => r.total_medicoes)
+      .filter(v => Number.isFinite(v))
+      .sort((a, b) => a - b)
+    if (!valores.length) return null
+    const meio = Math.floor(valores.length / 2)
+    if (valores.length % 2 === 0) {
+      return Math.round((valores[meio - 1] + valores[meio]) / 2)
+    }
+    return valores[meio]
+  }, [dadosMedianaMedicoesUSF])
+
+  const dadosArea = useMemo(() => {
+    const rows = gestorData?.por_area_microarea ?? []
+    const agg = new Map()
+    for (const r of rows) {
+      const k = `${r.nu_area ?? '—'}`
+      const prev = agg.get(k) || { area: k, controlados: 0, descontrolados: 0 }
+      const n = Number(r.total ?? 0)
+      if (r.status_atual === 'Controlado') prev.controlados += n
+      else if (r.status_atual === 'Descontrolado') prev.descontrolados += n
+      agg.set(k, prev)
+    }
+    return Array.from(agg.values()).sort((a, b) => a.area.localeCompare(b.area))
+  }, [gestorData])
+
+  const dadosMicroarea = useMemo(() => {
+    const rows = gestorData?.por_area_microarea ?? []
+    const area = areaSelecionada || (areasDisponiveis[0] ?? '')
+    if (!area) return []
+    const agg = new Map()
+    for (const r of rows) {
+      if (`${r.nu_area ?? ''}` !== `${area}`) continue
+      const k = `${r.nu_micro_area ?? '—'}`
+      const prev = agg.get(k) || { microarea: k, controlados: 0, descontrolados: 0 }
+      const n = Number(r.total ?? 0)
+      if (r.status_atual === 'Controlado') prev.controlados += n
+      else if (r.status_atual === 'Descontrolado') prev.descontrolados += n
+      agg.set(k, prev)
+    }
+    return Array.from(agg.values()).sort((a, b) => a.microarea.localeCompare(b.microarea))
+  }, [gestorData, areaSelecionada, areasDisponiveis])
+
+  const dadosSexo = useMemo(() => {
+    const rows = gestorData?.sexo_por_status ?? []
+    const base = {
+      Controlado: { status: 'Controlado', M: 0, F: 0 },
+      Descontrolado: { status: 'Descontrolado', M: 0, F: 0 },
+    }
+    for (const r of rows) {
+      const st = r.status_atual
+      const sx = r.sg_sexo
+      if (!base[st] || (sx !== 'M' && sx !== 'F')) continue
+      base[st][sx] = Number(r.total ?? 0)
+    }
+    return [base.Controlado, base.Descontrolado]
+  }, [gestorData])
+
+  const dadosFaixa = useMemo(() => {
+    const rows = gestorData?.faixa_etaria_por_status ?? []
+    const mk = (status) => {
+      const agg = new Map()
+      for (const r of rows) {
+        if (r.status_atual !== status) continue
+        const k = `${r.faixa_etaria}`
+        agg.set(k, Number(r.total ?? 0))
+      }
+      return Array.from(agg.entries())
+        .map(([faixa_etaria, total]) => ({ faixa_etaria, total }))
+        .sort((a, b) => a.faixa_etaria.localeCompare(b.faixa_etaria))
+    }
+    return {
+      controlados: mk('Controlado'),
+      descontrolados: mk('Descontrolado'),
+    }
+  }, [gestorData])
 
   useEffect(() => {
     async function carregarKML() {
@@ -146,35 +305,237 @@ export default function PainelHipertensao() {
 
   if (isError) return <div className="p-6 text-red-600 bg-red-50 rounded-lg m-6">Erro ao carregar dados da API.</div>
 
+  const nomeUSF =
+    usuario?.no_unidade_saude ??
+    (usuario?.co_unidade_saude != null ? `USF ${usuario.co_unidade_saude}` : null) ??
+    'USF Não Identificada'
+  const isEquipe = usuario?.co_unidade_saude != null
+
   return (
     <div className="p-6 space-y-6 bg-slate-50 min-h-screen font-sans text-slate-900">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-800">Painel - Pressão Arterial</h1>
-        <p className="text-sm text-slate-500 mt-1">Controle pressórico · Critérios DBHA 2025</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold text-slate-800">Painel - Pressão Arterial</h1>
+          <p className="text-sm text-slate-500 mt-1">Controle pressórico · Critérios DBHA 2025</p>
+        </div>
+        {isEquipe && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg self-start sm:self-center">
+            <MapPin size={18} className="text-blue-600" />
+            <span className="text-sm font-semibold text-blue-700">{nomeUSF}</span>
+          </div>
+        )}
       </div>
 
 
       {/* KPIs */}
-      <div className="flex flex-row gap-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex-1 flex flex-col justify-center">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Total Monitorado</p>
-          <p className="text-3xl font-extrabold text-slate-800 mt-2">{totalGeral.toLocaleString('pt-BR')}</p>
-        </div>
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
-          <p className="text-xs font-bold text-green-700 uppercase tracking-wide">Sob Controle</p>
-          <p className="text-3xl font-extrabold text-green-800 mt-2">{totalControlados}</p>
-          <p className="text-xs text-green-600 mt-1">Meta: PA &lt; 140/90 mmHg</p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5 shadow-sm flex-1 flex flex-col justify-center">
-          <p className="text-xs font-bold text-red-700 uppercase tracking-wide">Em Descontrole</p>
-          <p className="text-3xl font-extrabold text-red-800 mt-2">{totalDescontrolados}</p>
-          <p className="text-xs text-red-600 mt-1">Risco cardiovascular elevado</p>
-        </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
+        <KpiCard
+          label="Total monitorado"
+          value={totalGeral.toLocaleString('pt-BR')}
+          icon={Users}
+          color="blue"
+        />
+        <KpiCard
+          label="Sob controle"
+          value={totalControlados?.toLocaleString?.('pt-BR') ?? totalControlados}
+          sub="Meta: PA < 140/90 mmHg"
+          icon={CheckCircle}
+          color="emerald"
+        />
+        <KpiCard
+          label="Em descontrole"
+          value={totalDescontrolados?.toLocaleString?.('pt-BR') ?? totalDescontrolados}
+          sub="Risco cardiovascular elevado"
+          icon={XCircle}
+          color="red"
+        />
+        {medianaTotalMedicoesUltimoAno != null && (
+                  <div className="shrink-0">
+                    <KpiCard
+                      label="Mediana de medições/USF (últ. ano)"
+                      value={medianaTotalMedicoesUltimoAno.toLocaleString('pt-BR')}
+                      sub="Total de registros de PA por unidade"
+                      icon={Activity}
+                      color="blue"
+                    />
+                  </div>
+                )}
       </div>
 
+      {/* Painel do Gestor (gráficos e KPIs adicionais) */}
+      {isGestor && (
+        <div className="space-y-6">
+
+          <div className="grid gap-6">
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <h2 className="font-semibold text-slate-800">
+                    Controle vs descontrole por USF
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Situação atual dos cidadãos acompanhados por unidade de saúde.
+                  </p>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={dadosPorUSF} margin={{ top: 10, right: 16, left: 0, bottom: 40 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="usf" interval={0} angle={-25} textAnchor="middle" height={60} tick={false} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="controlados" name="Controlados" stackId="a" fill="#10b981" />
+                  <Bar dataKey="descontrolados" name="Descontrolados" stackId="a" fill="#ef4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+
+          {/* SEXO + MICROÁREA */}
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="font-semibold text-slate-800 mb-4">
+                Sexo por status
+              </h2>
+
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={dadosSexo}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="status" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="M" name="Homens" fill="#60a5fa" />
+                  <Bar dataKey="F" name="Mulheres" fill="#f472b6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-end justify-between gap-3 mb-3">
+                <h2 className="font-semibold text-slate-800">
+                  Distribuição por Microárea
+                </h2>
+
+                <div>
+                  <label className="block text-xs font-medium text-slate-600 mb-1">
+                    Área
+                  </label>
+
+                  <select
+                    value={areaSelecionada || (areasDisponiveis[0] ?? '')}
+                    onChange={(e) => setAreaSelecionada(e.target.value)}
+                    className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-28 outline-none bg-white"
+                  >
+                    {areasDisponiveis.map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={dadosMicroarea}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="microarea" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="controlados" name="Controlados" stackId="a" fill="#10b981" />
+                  <Bar dataKey="descontrolados" name="Descontrolados" stackId="a" fill="#ef4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+          </div>
+
+
+          {/* FAIXA ETÁRIA LADO A LADO */}
+
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="font-semibold text-slate-800 mb-4">
+                Faixa etária (Controlados)
+              </h2>
+
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={dadosFaixa.controlados}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="faixa_etaria" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="total" name="Controlados" fill="#10b981" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 className="font-semibold text-slate-800 mb-4">
+                Faixa etária (Descontrolados)
+              </h2>
+
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={dadosFaixa.descontrolados}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                  <XAxis dataKey="faixa_etaria" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="total" name="Descontrolados" fill="#ef4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+          </div>
+
+
+          {/* ÁREA APS */}
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <h2 className="font-semibold text-slate-800 mb-4">
+              Distribuição por Área (APS)
+            </h2>
+
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={dadosArea}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="area" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="controlados" name="Controlados" stackId="a" fill="#10b981" />
+                <Bar dataKey="descontrolados" name="Descontrolados" stackId="a" fill="#ef4444" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+        </div>
+      )}
 
       {/* Filtros da Tabela */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-4 items-end shadow-sm mt-6">
+      {isGestor && (
+        <div>
+          <label className="block text-xs font-medium text-slate-600 mb-1">USF/UBS</label>
+          <select
+            value={filtroUbsGestor}
+            onChange={(e) => { setFiltroUbsGestor(e.target.value); setOffset(0) }}
+            className="border border-slate-300 rounded-lg px-3 py-1.5 text-sm w-60 outline-none bg-white"
+          >
+            <option value="">Todas as USFs/UBSs</option>
+            {listaUbs.map(u => (
+              <option key={u.co_seq_unidade_saude} value={u.co_seq_unidade_saude}>
+                {u.no_unidade_saude}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
         <div className="flex-1 min-w-[200px]">
           <label className="block text-xs font-medium text-slate-600 mb-1">Paciente (nome ou código)</label>
           <input

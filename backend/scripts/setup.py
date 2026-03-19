@@ -30,6 +30,11 @@ from app.modules.pressao_arterial.views.manager import (
     criar_views,
     status_views,
 )
+from app.modules.diabetes.views.manager import (
+    criar_schema,
+    criar_views,
+    status_views,
+)
 from app.shared.controle_processamento import criar_tabela_controle
 
 logger = setup_logging("scripts.setup")
@@ -42,8 +47,11 @@ _SQL_SETUP_SINGLE      = (_SQL_DIR / "setup_single_db.sql").read_text(encoding="
 _SQL_SETUP_AUTH        = (_SQL_DIR / "auth" / "setup_auth.sql").read_text(encoding="utf-8")
 _SQL_SETUP_GEO         = (_SQL_DIR / "geo" / "setup_geocodificacao.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_HEMOGLOBINA = (_SQL_DIR / "diabetes" / "mv_dm_hemoglobina.sql").read_text(encoding="utf-8")
+_SQL_MV_DM_CIDADAOS_USF = (_SQL_DIR / "diabetes" / "mv_dm_cidadaos_usf.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_COMORBIDADES = (_SQL_DIR / "diabetes" / "mv_dm_comorbidades.sql").read_text(encoding="utf-8")
+_SQL_MV_DM_CONTROLE_USF = (_SQL_DIR / "diabetes" / "mv_dm_controle_usf.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_DESCONTROLE_USF = (_SQL_DIR / "diabetes" / "mv_dm_descontrole_usf.sql").read_text(encoding="utf-8")
+_SQL_MV_MEDIANA_EXAMES_HBA1C = (_SQL_DIR / "diabetes" / "mv_mediana_exames_hbA1c.sql").read_text(encoding="utf-8")
 _SQL_MV_ATENDIMENTO_COMPLETO = (_SQL_DIR / "atendimento" / "mv_atendimento_completo.sql").read_text(encoding="utf-8")
 _SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sql").read_text(encoding="utf-8")
 _SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
@@ -219,6 +227,17 @@ def step_views_diabetes() -> None:
         print("  [OK] dashboard.mv_dm_hemoglobina")
     except Exception as e:
         print(f"  [ERRO] mv_dm_hemoglobina: {e}")
+        
+def step_views_diabetes_cidadaos_usf() -> None:
+    """Cria mv_dm_cidadaos_usf."""
+    print("\n[VIEWS-DIABETES] Criando view materializada de Cidadão com Diabetes por USF...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_DM_CIDADAOS_USF)
+        print("  [OK] dashboard.mv_dm_cidados_usf")
+    except Exception as e:
+        print(f"  [ERRO] mv_dm_cidados_usf: {e}")
 
 def step_views_diabetes_comorbidades() -> None:
     """Cria mv_dm_comorbidades."""
@@ -230,6 +249,17 @@ def step_views_diabetes_comorbidades() -> None:
         print("  [OK] dashboard.mv_dm_comorbidades")
     except Exception as e:
         print(f"  [ERRO] mv_dm_comorbidades: {e}")
+
+def step_views_diabetes_controle_usf() -> None:
+    """Cria mv_dm_controle_usf."""
+    print("\n[VIEWS-DIABETES] Criando view materializada de Controle por USF...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_DM_CONTROLE_USF)
+        print("  [OK] dashboard.mv_dm_controle_usf")
+    except Exception as e:
+        print(f"  [ERRO] mv_dm_controle_usf: {e}")
 
 def step_views_diabetes_descontrole_usf() -> None:
     """Cria mv_dm_descontrole_usf."""
@@ -252,6 +282,16 @@ def step_views_atendimento_completo() -> None:
         print("  [OK] dashboard.mv_atendimento_completo")
     except Exception as e:
         print(f"  [ERRO] mv_atendimento_completo: {e}")
+def step_views_mediana_exames_hbA1c() -> None:
+    """Cria mv_mediana_exames_hbA1c."""
+    print("\n[VIEWS-DIABETES] Criando view materializada das Medianas de exames hbA1c...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_MEDIANA_EXAMES_HBA1C)
+        print("  [OK] dashboard.mv_mediana_exames_hbA1c")
+    except Exception as e:
+        print(f"  [ERRO] mv_mediana_exames_hbA1c: {e}")
 
 def step_views_regulares() -> None:
     """Cria vw_bairro_canonico e vw_loteamento_canonico."""
@@ -327,8 +367,10 @@ def step_refresh() -> None:
         "mv_pa_cadastros",
         "mv_pa_medicoes_cidadaos",
         "mv_dm_hemoglobina",
+        "mv_dm_cidadaos_usf",
         "mv_dm_comorbidades",
         "mv_dm_descontrole_usf",
+
     ]
 
     print("\n[REFRESH] Atualizando views materializadas...")
@@ -406,16 +448,34 @@ Exemplos:
         help="Cria mv_dm_hemoglobina (Diabetes)",
     )
     parser.add_argument(
+        "--views-diabetes-cidadaos-usf",
+        action="store_true",
+        dest="views_diabetes",
+        help="Cria mv_dm_cidadaos_usf (Cidadãos com Diabetes por USF)",
+    )
+    parser.add_argument(
         "--views-diabetes_comorbidades",
         action="store_true",
         dest="views_diabetes_comorbidades",
         help="Cria mv_dm_comorbidades (Diabetes_Comorbidades)",
     )
     parser.add_argument(
+        "--views-controle_usf",
+        action="store_true",
+        dest="views_controle_usf",
+        help="Cria mv_dm_controle_usf (Diabetes_Controle_USF)",
+    )
+    parser.add_argument(
         "--views-descontrole_usf",
         action="store_true",
         dest="views_descontrole_usf",
         help="Cria mv_dm_descontrole_usf (Diabetes_Descontrole_USF)",
+    )
+    parser.add_argument(
+        "--views-mediana-exames-hbA1c",
+        action="store_true",
+        dest="views_mediana_exames_hbA1c",
+        help="Cria mv_mediana_exames_hbA1c (Diabetes_Mediana_Exames_hbA1c)",
     )
     parser.add_argument(
         "--views-regulares",
@@ -500,11 +560,14 @@ def main() -> None:
         step_tabelas()
         step_views_pa()
         step_views_diabetes()
+        step_views_diabetes_cidadaos_usf()
         step_views_regulares()
         step_views_diabetes_comorbidades()
         step_views_diabetes_descontrole_usf()
+        step_views_diabetes_controle_usf()
         step_sincronizacao_geo()
         step_views_atendimento_completo()
+        step_views_mediana_exames_hbA1c()
     else:
         if args.schema:
             step_schema()
@@ -524,6 +587,10 @@ def main() -> None:
             step_views_diabetes_descontrole_usf()
         if args.views_atendimento_completo:
             step_views_atendimento_completo()
+        if args.views_controle_usf:
+            step_views_diabetes_controle_usf()
+        if args.views_mediana_exames_hbA1c:
+            step_views_mediana_exames_hbA1c()    
         if args.normalizacao:
             step_normalizacao(
                 limite_ceps=args.limite_ceps,

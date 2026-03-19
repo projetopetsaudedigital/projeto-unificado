@@ -2,12 +2,14 @@
 Router de analytics — Pressão Arterial.
 
 Endpoints:
-  GET /tendencia           → evolução mensal de medições e classificação PA
-  GET /prevalencia         → hipertensos por bairro VDC, sexo, faixa etária
-  GET /fatores-risco       → comparativo comorbidades hipertensos vs não
-  GET /mapa                → dados por bairro VDC para mapa coroplético
-  GET /cobertura-bairros   → resumo de cobertura VDC vs não-identificados
-  GET /bairros             → lista de bairros VDC disponíveis
+  GET /tendencia             → evolução mensal de medições e classificação PA
+  GET /prevalencia           → hipertensos por bairro VDC, sexo, faixa etária
+  GET /distribuicao-area       → distribuição de cadastros e hipertensão por nu_area
+  GET /distribuicao-microarea  → distribuição de cadastros e hipertensão por nu_micro_area
+  GET /fatores-risco           → comparativo comorbidades hipertensos vs não
+  GET /mapa                    → dados por bairro VDC para mapa coroplético
+  GET /cobertura-bairros       → resumo de cobertura VDC vs não-identificados
+  GET /bairros                 → lista de bairros VDC disponíveis
 """
 
 from datetime import date
@@ -34,6 +36,10 @@ from app.modules.pressao_arterial.analytics.mapa import (
 )
 from app.modules.pressao_arterial.analytics.ubs import buscar_dados_ubs
 from app.modules.pressao_arterial.analytics.individuos import buscar_individuos_hipertensos
+from app.modules.pressao_arterial.analytics.area import buscar_distribuicao_por_area
+from app.modules.pressao_arterial.analytics.microarea import buscar_distribuicao_por_microarea
+from app.modules.pressao_arterial.analytics.gestor import buscar_painel_gestor_controle_pressorico
+
 from app.auth.jwt import get_usuario_obrigatorio
 from app.modules.pressao_arterial.schemas import (
     KPIsResponse,
@@ -44,9 +50,25 @@ from app.modules.pressao_arterial.schemas import (
     BairrosResponse,
     UbsResponse,
     IndividuosHipertensaoResponse,
+    DistribuicaoAreaResponse,
+    DistribuicaoMicroareaResponse,
 )
 
 router = APIRouter()
+
+
+@router.get("/gestor/controle", summary="Painel do gestor: agregações de controle pressórico")
+def painel_gestor_controle(
+    co_unidade_saude: Optional[int] = Query(default=None, ge=1, description="Filtrar por UBS/USF"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
+):
+    # Usuário de equipe: sempre restringe à sua unidade, ignorando o parâmetro recebido.
+    if usuario.get("co_unidade_saude") is not None:
+        co_unidade_saude_efetiva = usuario["co_unidade_saude"]
+    else:
+        co_unidade_saude_efetiva = co_unidade_saude
+
+    return buscar_painel_gestor_controle_pressorico(co_unidade_saude=co_unidade_saude_efetiva)
 
 
 @router.get(
@@ -75,7 +97,11 @@ def listar_individuos_hipertensos(
     usuario: dict = Depends(get_usuario_obrigatorio),
 ):
     """Lista individuos hipertensos usando filtros clinico-demograficos."""
-    _ = usuario
+    # Usuário de equipe: sempre restringe à sua unidade, ignorando o parâmetro recebido.
+    if usuario.get("co_unidade_saude") is not None:
+        co_unidade_saude_efetiva = usuario["co_unidade_saude"]
+    else:
+        co_unidade_saude_efetiva = co_unidade_saude
 
     if (
         data_ultima_medicao_inicio is not None
@@ -95,7 +121,7 @@ def listar_individuos_hipertensos(
         faixa_etaria=faixa_etaria,
         nu_area=nu_area,
         nu_micro_area=nu_micro_area,
-        co_unidade_saude=co_unidade_saude,
+        co_unidade_saude=co_unidade_saude_efetiva,
         st_diabetes=st_diabetes,
         data_ultima_medicao_inicio=data_ultima_medicao_inicio,
         data_ultima_medicao_fim=data_ultima_medicao_fim,
@@ -117,7 +143,7 @@ def listar_individuos_hipertensos(
             "faixa_etaria": faixa_etaria,
             "nu_area": nu_area,
             "nu_micro_area": nu_micro_area,
-            "co_unidade_saude": co_unidade_saude,
+            "co_unidade_saude": co_unidade_saude_efetiva,
             "st_diabetes": st_diabetes,
             "data_ultima_medicao_inicio": data_ultima_medicao_inicio,
             "data_ultima_medicao_fim": data_ultima_medicao_fim,
@@ -142,15 +168,22 @@ def tendencia(
     ano_fim: Optional[int] = Query(default=None, description="Ano final do período"),
     co_unidade_saude: Optional[int] = Query(default=None, description="Código da UBS"),
     bairro: Optional[str] = Query(default=None, description="Nome normalizado do bairro"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
 ):
     """
     Evolução mensal de medições de pressão arterial.
     Retorna contagem por classificação (normal, elevada, HAS I/II/III) e médias de PAS/PAD.
     """
+    # Usuário de equipe: sempre restringe à sua unidade, ignorando o parâmetro recebido.
+    if usuario.get("co_unidade_saude") is not None:
+        co_unidade_saude_efetiva = usuario["co_unidade_saude"]
+    else:
+        co_unidade_saude_efetiva = co_unidade_saude
+
     dados = buscar_tendencia(
         ano_inicio=ano_inicio,
         ano_fim=ano_fim,
-        co_unidade_saude=co_unidade_saude,
+        co_unidade_saude=co_unidade_saude_efetiva,
         bairro=bairro,
     )
     return {
@@ -158,7 +191,7 @@ def tendencia(
         "filtros_aplicados": {
             "ano_inicio": ano_inicio,
             "ano_fim": ano_fim,
-            "co_unidade_saude": co_unidade_saude,
+            "co_unidade_saude": co_unidade_saude_efetiva,
             "bairro": bairro,
         },
         "dados": dados,
@@ -321,8 +354,6 @@ def exportar_bairros(
     Retorna JSON completo com todos os bairros e seus indicadores de saúde.
     Inclui: total de cadastros, hipertensos, prevalência, diabetes, AVC,
     infarto, fumantes, idosos — por bairro canônico normalizado.
-
-    Salve a resposta como arquivo .json para análise offline ou uso no frontend.
     """
     from app.core.database import execute_query
     from app.core.config import settings
@@ -330,8 +361,8 @@ def exportar_bairros(
 
     sql = f"""
     SELECT
-        g.no_bairro                                              AS bairro,
-        COUNT(*)                                                 AS total_cadastros,
+        g.no_bairro                                             AS bairro,
+        COUNT(*)                                                AS total_cadastros,
         COUNT(*) FILTER (WHERE c.st_hipertensao_arterial = 1)   AS hipertensos,
         ROUND(
             COUNT(*) FILTER (WHERE c.st_hipertensao_arterial = 1)::NUMERIC
@@ -361,7 +392,6 @@ def exportar_bairros(
 
     rows = execute_query(sql, {"minimo": minimo_cadastros})
 
-    # Converte Decimal para float
     bairros_data = [
         {k: float(v) if hasattr(v, "__float__") else v for k, v in r.items()}
         for r in rows
@@ -372,4 +402,75 @@ def exportar_bairros(
         "total_bairros": len(bairros_data),
         "minimo_cadastros_filtro": minimo_cadastros,
         "bairros": bairros_data,
+    }
+
+
+@router.get(
+    "/distribuicao-area",
+    summary="Distribuicao de hipertensao por area de adscricao",
+    response_model=DistribuicaoAreaResponse,
+)
+def distribuicao_area(
+    ano_inicio: Optional[int] = Query(default=None, description="Ano inicial do periodo"),
+    ano_fim: Optional[int] = Query(default=None, description="Ano final do periodo"),
+    bairro: Optional[str] = Query(default=None, description="Filtro opcional por bairro normalizado"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
+):
+    """Distribuicao de cadastros e hipertensao por area (nu_area)."""
+    _ = usuario
+
+    if ano_inicio is not None and ano_fim is not None and ano_inicio > ano_fim:
+        raise HTTPException(status_code=422, detail="ano_inicio nao pode ser maior que ano_fim")
+
+    dados = buscar_distribuicao_por_area(
+        ano_inicio=ano_inicio,
+        ano_fim=ano_fim,
+        bairro=bairro,
+    )
+
+    return {
+        "total": len(dados),
+        "filtros_aplicados": {
+            "ano_inicio": ano_inicio,
+            "ano_fim": ano_fim,
+            "bairro": bairro,
+        },
+        "dados": dados,
+    }
+
+
+@router.get(
+    "/distribuicao-microarea",
+    summary="Distribuicao de hipertensao por microarea de adscricao",
+    response_model=DistribuicaoMicroareaResponse,
+)
+def distribuicao_microarea(
+    area: Optional[str] = Query(default=None, description="Filtro por area de adscricao (nu_area)"),
+    ano_inicio: Optional[int] = Query(default=None, description="Ano inicial do periodo"),
+    ano_fim: Optional[int] = Query(default=None, description="Ano final do periodo"),
+    bairro: Optional[str] = Query(default=None, description="Filtro opcional por bairro normalizado"),
+    usuario: dict = Depends(get_usuario_obrigatorio),
+):
+    """Distribuicao de cadastros e hipertensao por microarea (nu_area + nu_micro_area)."""
+    _ = usuario
+
+    if ano_inicio is not None and ano_fim is not None and ano_inicio > ano_fim:
+        raise HTTPException(status_code=422, detail="ano_inicio nao pode ser maior que ano_fim")
+
+    dados = buscar_distribuicao_por_microarea(
+        area=area,
+        ano_inicio=ano_inicio,
+        ano_fim=ano_fim,
+        bairro=bairro,
+    )
+
+    return {
+        "total": len(dados),
+        "filtros_aplicados": {
+            "area": area,
+            "ano_inicio": ano_inicio,
+            "ano_fim": ano_fim,
+            "bairro": bairro,
+        },
+        "dados": dados,
     }

@@ -53,12 +53,15 @@ SELECT DISTINCT ON (cad.co_fat_cidadao_pec)
     cad.co_dim_tipo_escolaridade,
     e.ds_dim_tipo_escolaridade,
 
-    -- Geolocalização (dois campos para maior cobertura)
+    -- Geolocalização
     c.no_bairro,
     c.no_bairro_filtro,
     c.co_localidade,
     c.nu_area,
-    c.nu_micro_area,
+    COALESCE(
+        NULLIF(TRIM(terr.nu_micro_area), ''),
+        NULLIF(TRIM(c.nu_micro_area), '')
+    )                                                         AS nu_micro_area,
     c.co_uf,
     c.ds_logradouro,
     c.nu_numero,
@@ -98,6 +101,16 @@ INNER JOIN pec.tb_fat_cidadao_pec pec
 
 INNER JOIN pec.tb_cidadao c
     ON pec.co_cidadao = c.co_seq_cidadao
+
+LEFT JOIN LATERAL (
+    SELECT
+        t.nu_micro_area
+    FROM public.tb_fat_cidadao_territorio t
+    WHERE t.co_fat_cidadao_pec = cad.co_fat_cidadao_pec
+      AND NULLIF(TRIM(t.nu_micro_area), '') IS NOT NULL
+    ORDER BY t.co_seq_fat_cidadao_territorio DESC
+    LIMIT 1
+) terr ON TRUE
 
 LEFT JOIN pec.tb_dim_sexo s
     ON cad.co_dim_sexo = s.co_seq_dim_sexo
