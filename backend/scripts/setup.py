@@ -30,6 +30,11 @@ from app.modules.pressao_arterial.views.manager import (
     criar_views,
     status_views,
 )
+from app.modules.diabetes.views.manager import (
+    criar_schema,
+    criar_views,
+    status_views,
+)
 from app.shared.controle_processamento import criar_tabela_controle
 
 logger = setup_logging("scripts.setup")
@@ -44,8 +49,10 @@ _SQL_SETUP_GEO         = (_SQL_DIR / "geo" / "setup_geocodificacao.sql").read_te
 _SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sql").read_text(encoding="utf-8")
 _SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_HEMOGLOBINA = (_SQL_DIR / "diabetes" / "mv_dm_hemoglobina.sql").read_text(encoding="utf-8")
+_SQL_MV_DM_CIDADAOS_USF = (_SQL_DIR / "diabetes" / "mv_dm_cidadaos_usf.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_COMORBIDADES = (_SQL_DIR / "diabetes" / "mv_dm_comorbidades.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_DESCONTROLE_USF = (_SQL_DIR / "diabetes" / "mv_dm_descontrole_usf.sql").read_text(encoding="utf-8")
+
 
 _SQL_BAIRROS_MAPEAMENTO = """
 CREATE TABLE IF NOT EXISTS dashboard.tb_bairros_mapeamento (
@@ -216,6 +223,17 @@ def step_views_diabetes() -> None:
         print("  [OK] dashboard.mv_dm_hemoglobina")
     except Exception as e:
         print(f"  [ERRO] mv_dm_hemoglobina: {e}")
+        
+def step_views_diabetes_cidadaos_usf() -> None:
+    """Cria mv_dm_cidadaos_usf."""
+    print("\n[VIEWS-DIABETES] Criando view materializada de Cidadão com Diabetes por USF...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_DM_CIDADAOS_USF)
+        print("  [OK] dashboard.mv_dm_cidados_usf")
+    except Exception as e:
+        print(f"  [ERRO] mv_dm_cidados_usf: {e}")
 
 def step_views_diabetes_comorbidades() -> None:
     """Cria mv_dm_comorbidades."""
@@ -303,8 +321,10 @@ def step_refresh() -> None:
         "mv_pa_cadastros",
         "mv_pa_medicoes_cidadaos",
         "mv_dm_hemoglobina",
+        "mv_dm_cidadaos_usf",
         "mv_dm_comorbidades",
         "mv_dm_descontrole_usf",
+
     ]
 
     print("\n[REFRESH] Atualizando views materializadas...")
@@ -382,6 +402,12 @@ Exemplos:
         help="Cria mv_dm_hemoglobina (Diabetes)",
     )
     parser.add_argument(
+        "--views-diabetes-cidadaos-usf",
+        action="store_true",
+        dest="views_diabetes",
+        help="Cria mv_dm_cidadaos_usf (Cidadãos com Diabetes por USF)",
+    )
+  parser.add_argument(
         "--views-diabetes_comorbidades",
         action="store_true",
         dest="views_diabetes_comorbidades",
@@ -471,6 +497,7 @@ def main() -> None:
         step_tabelas()
         step_views_pa()
         step_views_diabetes()
+        step_views_diabetes_cidadaos_usf()
         step_views_regulares()
         step_views_diabetes_comorbidades()
         step_views_diabetes_descontrole_usf()
