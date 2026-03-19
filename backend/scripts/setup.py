@@ -52,7 +52,7 @@ _SQL_MV_DM_HEMOGLOBINA = (_SQL_DIR / "diabetes" / "mv_dm_hemoglobina.sql").read_
 _SQL_MV_DM_CIDADAOS_USF = (_SQL_DIR / "diabetes" / "mv_dm_cidadaos_usf.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_COMORBIDADES = (_SQL_DIR / "diabetes" / "mv_dm_comorbidades.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_DESCONTROLE_USF = (_SQL_DIR / "diabetes" / "mv_dm_descontrole_usf.sql").read_text(encoding="utf-8")
-
+_SQL_MV_CIDADAO_INFO = (_SQL_DIR / "cidadao" / "mv_cidadao_info.sql").read_text(encoding="utf-8")
 
 _SQL_BAIRROS_MAPEAMENTO = """
 CREATE TABLE IF NOT EXISTS dashboard.tb_bairros_mapeamento (
@@ -271,6 +271,14 @@ def step_views_regulares() -> None:
     except Exception as e:
         print(f"  [ERRO] vw_loteamento_canonico: {e}")
 
+def step_views_cidadao() -> None:
+    """Cria mv_cidadao_info."""
+    print("\n[VIEWS-REGULARES] Criando view materializada de cadastro consolidado de cidadão...")
+    try:
+        _executar_sql_ddl(_SQL_MV_CIDADAO_INFO)
+        print("  [OK] dashboard.mv_cidadao_info")
+    except Exception as e:
+        print(f"  [ERRO] mv_cidadao_info: {e}")
 
 def step_normalizacao(limite_ceps: int | None, threshold: float, delay: float) -> None:
     """Executa normalização de bairros via ViaCEP + fuzzy matching."""
@@ -324,7 +332,7 @@ def step_refresh() -> None:
         "mv_dm_cidadaos_usf",
         "mv_dm_comorbidades",
         "mv_dm_descontrole_usf",
-
+        "mv_cidadao_info",
     ]
 
     print("\n[REFRESH] Atualizando views materializadas...")
@@ -407,7 +415,7 @@ Exemplos:
         dest="views_diabetes",
         help="Cria mv_dm_cidadaos_usf (Cidadãos com Diabetes por USF)",
     )
-  parser.add_argument(
+    parser.add_argument(
         "--views-diabetes_comorbidades",
         action="store_true",
         dest="views_diabetes_comorbidades",
@@ -418,6 +426,12 @@ Exemplos:
         action="store_true",
         dest="views_descontrole_usf",
         help="Cria mv_dm_descontrole_usf (Diabetes_Descontrole_USF)",
+    )
+    parser.add_argument(
+        "--views-cidadao",
+        action="store_true",
+        dest="views_cidadao",
+        help="Cria mv_cidadao_info (Cadastro consolidado de cidadão)",
     )
     parser.add_argument(
         "--views-regulares",
@@ -501,6 +515,7 @@ def main() -> None:
         step_views_regulares()
         step_views_diabetes_comorbidades()
         step_views_diabetes_descontrole_usf()
+        step_views_cidadao()
         step_sincronizacao_geo()
     else:
         if args.schema:
@@ -519,6 +534,8 @@ def main() -> None:
             step_views_diabetes_comorbidades()
         if args.views_descontrole_usf:
             step_views_diabetes_descontrole_usf()
+        if args.views_cidadao:
+            step_views_cidadao()
         if args.normalizacao:
             step_normalizacao(
                 limite_ceps=args.limite_ceps,
