@@ -57,6 +57,7 @@ _SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sq
 _SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
 _SQL_VW_ATENDIMENTO_ULTIMO_ANO = (_SQL_DIR / "atendimento" / "vw_atendimento_ultimo_ano.sql").read_text(encoding="utf-8")
 _SQL_VW_CLASSIFICACAO_PRESSAO = (_SQL_DIR / "atendimento" / "vw_classificação_pressao.sql").read_text(encoding="utf-8")
+_SQL_MV_CIDADAO_INFO = (_SQL_DIR / "cidadao" / "mv_cidadao_info.sql").read_text(encoding="utf-8")
 
 _SQL_BAIRROS_MAPEAMENTO = """
 CREATE TABLE IF NOT EXISTS dashboard.tb_bairros_mapeamento (
@@ -317,6 +318,14 @@ def step_views_regulares() -> None:
     except Exception as e:
         print(f"  [ERRO] vw_classificacao_pressao: {e}")
 
+def step_views_cidadao() -> None:
+    """Cria mv_cidadao_info."""
+    print("\n[VIEWS-REGULARES] Criando view materializada de cadastro consolidado de cidadão...")
+    try:
+        _executar_sql_ddl(_SQL_MV_CIDADAO_INFO)
+        print("  [OK] dashboard.mv_cidadao_info")
+    except Exception as e:
+        print(f"  [ERRO] mv_cidadao_info: {e}")
 
 def step_normalizacao(limite_ceps: int | None, threshold: float, delay: float) -> None:
     """Executa normalização de bairros via ViaCEP + fuzzy matching."""
@@ -370,7 +379,7 @@ def step_refresh() -> None:
         "mv_dm_cidadaos_usf",
         "mv_dm_comorbidades",
         "mv_dm_descontrole_usf",
-
+        "mv_cidadao_info",
     ]
 
     print("\n[REFRESH] Atualizando views materializadas...")
@@ -472,6 +481,12 @@ Exemplos:
         help="Cria mv_dm_descontrole_usf (Diabetes_Descontrole_USF)",
     )
     parser.add_argument(
+        "--views-cidadao",
+        action="store_true",
+        dest="views_cidadao",
+        help="Cria mv_cidadao_info (Cadastro consolidado de cidadão)",
+    )
+    parser.add_argument(
         "--views-mediana-exames-hbA1c",
         action="store_true",
         dest="views_mediana_exames_hbA1c",
@@ -568,6 +583,7 @@ def main() -> None:
         step_sincronizacao_geo()
         step_views_atendimento_completo()
         step_views_mediana_exames_hbA1c()
+        step_views_cidadao()
     else:
         if args.schema:
             step_schema()
@@ -585,6 +601,8 @@ def main() -> None:
             step_views_diabetes_comorbidades()
         if args.views_descontrole_usf:
             step_views_diabetes_descontrole_usf()
+        if args.views_cidadao:
+            step_views_cidadao()
         if args.views_atendimento_completo:
             step_views_atendimento_completo()
         if args.views_controle_usf:
