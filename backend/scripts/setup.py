@@ -407,7 +407,7 @@ Exemplos:
         dest="views_diabetes",
         help="Cria mv_dm_cidadaos_usf (Cidadãos com Diabetes por USF)",
     )
-  parser.add_argument(
+    parser.add_argument(
         "--views-diabetes_comorbidades",
         action="store_true",
         dest="views_diabetes_comorbidades",
