@@ -41,11 +41,14 @@ _SQL_DIR = Path(__file__).parent.parent / "sql"
 _SQL_SETUP_SINGLE      = (_SQL_DIR / "setup_single_db.sql").read_text(encoding="utf-8")
 _SQL_SETUP_AUTH        = (_SQL_DIR / "auth" / "setup_auth.sql").read_text(encoding="utf-8")
 _SQL_SETUP_GEO         = (_SQL_DIR / "geo" / "setup_geocodificacao.sql").read_text(encoding="utf-8")
-_SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sql").read_text(encoding="utf-8")
-_SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_HEMOGLOBINA = (_SQL_DIR / "diabetes" / "mv_dm_hemoglobina.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_COMORBIDADES = (_SQL_DIR / "diabetes" / "mv_dm_comorbidades.sql").read_text(encoding="utf-8")
 _SQL_MV_DM_DESCONTROLE_USF = (_SQL_DIR / "diabetes" / "mv_dm_descontrole_usf.sql").read_text(encoding="utf-8")
+_SQL_MV_ATENDIMENTO_COMPLETO = (_SQL_DIR / "atendimento" / "mv_atendimento_completo.sql").read_text(encoding="utf-8")
+_SQL_VW_BAIRRO         = (_SQL_DIR / "pressao_arterial" / "vw_bairro_canonico.sql").read_text(encoding="utf-8")
+_SQL_VW_LOTEAMENTO     = (_SQL_DIR / "pressao_arterial" / "vw_loteamento_canonico.sql").read_text(encoding="utf-8")
+_SQL_VW_ATENDIMENTO_ULTIMO_ANO = (_SQL_DIR / "atendimento" / "vw_atendimento_ultimo_ano.sql").read_text(encoding="utf-8")
+_SQL_VW_CLASSIFICACAO_PRESSAO = (_SQL_DIR / "atendimento" / "vw_classificação_pressao.sql").read_text(encoding="utf-8")
 
 _SQL_BAIRROS_MAPEAMENTO = """
 CREATE TABLE IF NOT EXISTS dashboard.tb_bairros_mapeamento (
@@ -239,6 +242,17 @@ def step_views_diabetes_descontrole_usf() -> None:
     except Exception as e:
         print(f"  [ERRO] mv_dm_descontrole_usf: {e}")
 
+def step_views_atendimento_completo() -> None:
+    """Cria mv_atendimento_completo."""
+    print("\n[VIEWS-DIABETES] Criando view materializada de Atendimento_Completo...")
+    if settings.DB_MODE == "fdw":
+        print("  (pode levar vários minutos via FDW — aguarde)")
+    try:
+        _executar_sql_ddl(_SQL_MV_ATENDIMENTO_COMPLETO)
+        print("  [OK] dashboard.mv_atendimento_completo")
+    except Exception as e:
+        print(f"  [ERRO] mv_atendimento_completo: {e}")
+
 def step_views_regulares() -> None:
     """Cria vw_bairro_canonico e vw_loteamento_canonico."""
     print("\n[VIEWS-REGULARES] Criando views regulares de endereço...")
@@ -252,6 +266,16 @@ def step_views_regulares() -> None:
         print("  [OK] dashboard.vw_loteamento_canonico")
     except Exception as e:
         print(f"  [ERRO] vw_loteamento_canonico: {e}")
+    try:
+        _executar_sql_ddl(_SQL_VW_ATENDIMENTO_ULTIMO_ANO)
+        print("  [OK] dashboard.vw_atendimento_ultimo_ano")
+    except Exception as e:
+        print(f"  [ERRO] vw_atendimento_ultimo_ano: {e}")
+    try:
+        _executar_sql_ddl(_SQL_VW_CLASSIFICACAO_PRESSAO)
+        print("  [OK] dashboard.vw_classificacao_pressao")
+    except Exception as e:
+        print(f"  [ERRO] vw_classificacao_pressao: {e}")
 
 
 def step_normalizacao(limite_ceps: int | None, threshold: float, delay: float) -> None:
@@ -409,7 +433,12 @@ Exemplos:
         action="store_true",
         help="Executa REFRESH CONCURRENTLY em todas as views materializadas existentes",
     )
-
+    parser.add_argument(
+        "--views-atendimento-completo",
+        action="store_true",
+        dest="views_atendimento_completo",
+        help="Cria vw_atendimento_completo (Atendimento_Completo)",
+    )
     # Flags auxiliares para --normalizacao
     parser.add_argument(
         "--limite-ceps",
@@ -475,6 +504,7 @@ def main() -> None:
         step_views_diabetes_comorbidades()
         step_views_diabetes_descontrole_usf()
         step_sincronizacao_geo()
+        step_views_atendimento_completo()
     else:
         if args.schema:
             step_schema()
@@ -492,6 +522,8 @@ def main() -> None:
             step_views_diabetes_comorbidades()
         if args.views_descontrole_usf:
             step_views_diabetes_descontrole_usf()
+        if args.views_atendimento_completo:
+            step_views_atendimento_completo()
         if args.normalizacao:
             step_normalizacao(
                 limite_ceps=args.limite_ceps,
